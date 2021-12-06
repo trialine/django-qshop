@@ -8,6 +8,7 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Count
 from django.utils.translation import ugettext_lazy as _
 from django.apps import apps
+from decimal import Decimal
 
 class CategoryData:
     need_return = False
@@ -52,30 +53,39 @@ class CategoryData:
 
     def process_products(self):
         if self.init_products is not None:
-            products = self.init_products
+            self.products = self.init_products
         elif not self.menu.page_type == 'pdis':
-            products = Product.in_category_objects.filter(category=self.menu)
+            self.products = Product.in_category_objects.filter(category=self.menu)
         else:
-            products = Product.in_category_objects.exclude(discount_price=None)
+            self.products = Product.in_category_objects.exclude(discount_price=None)
 
-        for filter_q in self.get_q_filters():
-            products = products.filter(filter_q)
+        filters_q, filters_q_w = self.get_q_filters()
+
+        self.products_without_price_filter = []
+        for filter_q_w in filters_q_w:
+            self.products_without_price_filter = self.products.filter(filter_q_w)
+        else:
+            self.products_without_price_filter = self.products
+
+
+        for filter_q in filters_q:
+            self.products = self.products.filter(filter_q)
 
         if FILTERS_PRECLUDING:
-            self.set_aviable_filters(products)
+            self.set_available_filters(self.products)
 
         if self.sort[1] == 'price' or self.sort[1] == '-price':
             sort = self.sort[1].replace('price', 'min_price')
-            products = products.extra(select={'min_price': "IF(`qshop_product`.`discount_price`, `qshop_product`.`discount_price`, `qshop_product`.`price`)"}).order_by(sort)
+            self.products = self.products.extra(select={'min_price': "IF(`qshop_product`.`discount_price`, `qshop_product`.`discount_price`, `qshop_product`.`price`)"}).order_by(sort)
         else:
             sort = self.sort[1]
             if isinstance(sort, str):
                 sort = (sort,)
-            products = products.order_by(*sort)
+            self.products = self.products.order_by(*sort)
 
-        products = products.distinct()
+        self.products = self.products.distinct()
 
-        paginator = Paginator(products, PRODUCTS_ON_PAGE)
+        paginator = Paginator(self.products, PRODUCTS_ON_PAGE)
         try:
             products_page = paginator.page(self.page)
         except (PageNotAnInteger, EmptyPage):
@@ -151,6 +161,34 @@ class CategoryData:
                             filters['v']['values'].append(
                                 (variation.id, {'name': variation.get_filter_name(), 'active': False, 'unaviable': False, 'count': 0, 'filter': Q(productvariation__variation_id=variation.id)})
                             )
+                elif filter_key == 'price_range':
+                    for field_name in FILTERS_FIELDS[filter_key]:
+                        field = Product._meta.get_field(field_name)
+                        filters_order.append(field_name)
+                        filters[field_name] = {
+                            'name': field.verbose_name,
+                            'type': 'price_range',
+                            'field_name': field_name,
+                            'has_active': False,
+                            'values': [],
+                            'skip_unaviable': False,
+                            'filter_type': 'or',
+                            'filter_aviability_check': True
+                        }
+
+                        fltrs = []
+                        if self.filter_string:
+                            fltrs = self.decode_filters(self.filter_string)
+
+                        if field_name in fltrs:
+                            filters[field_name]['current_min_price'] = fltrs[field_name][0]
+                            filters[field_name]['current_max_price'] = fltrs[field_name][1]
+
+                        q = {}
+                        filters[field_name]['values'].append(
+                            ('', {'name': '', 'active': False, 'unaviable': False, 'count': 0, 'filter': Q(**q)})
+                        )
+
                 else:
                     field_name = FILTERS_FIELDS[filter_key]
                     if not hasattr(Product, field_name):
@@ -176,9 +214,9 @@ class CategoryData:
 
         if FILTERS_ENABLED:
             try:
-                selected_filters = self.decode_filters(self.filter_string)
+                self.selected_filters = self.decode_filters(self.filter_string)
             except:
-                selected_filters = {}
+                self.selected_filters = {}
 
             if 'filteradd' in self.request.GET or 'filterdel' in self.request.GET or 'filterset' in self.request.GET or 'filterclear' in self.request.GET:
                 if 'filteradd' in self.request.GET:
@@ -197,35 +235,51 @@ class CategoryData:
                 wrong_data = False
 
                 try:
-                    f_data = re.search('f([\d\w]+)-(\d+)', action_value)
-                    filter_id = str(f_data.group(1))
-                    filter_value = int(f_data.group(2))
+                    f_data = re.search('f([\d\w]+)-([,.:\d]+)', action_value)
+                    if not f_data:
+                        f_data = re.search('f([\d\w]+)', action_value)
+                        filter_id = str(f_data.group(1))
+                        filter_value = ""
+                    else:
+                        filter_id = str(f_data.group(1))
+
+                        try:
+                            filter_value = int(f_data.group(2))
+                        except ValueError:
+                            filter_value = f_data.group(2)
+
                 except AttributeError:
                     wrong_data = True
+
 
                 if not wrong_data:
                     if action_type == 'add':
                         try:
-                            if not filter_value in selected_filters[filter_id]:
-                                selected_filters[filter_id].append(filter_value)
+                            if not filter_value in self.selected_filters[filter_id]:
+                                self.selected_filters[filter_id].append(filter_value)
                         except:
-                            selected_filters[filter_id] = [filter_value]
+                            self.selected_filters[filter_id] = [filter_value]
                     elif action_type == 'del':
                         try:
-                            selected_filters[filter_id].remove(filter_value)
-                            if not selected_filters[filter_id]:
-                                del selected_filters[filter_id]
+
+                            if filter_value:
+                                self.selected_filters[filter_id].remove(filter_value)
+                            else:
+                                del self.selected_filters[filter_id]
+
+                            if not self.selected_filters[filter_id]:
+                                del self.selected_filters[filter_id]
                         except:
                             pass
                     elif action_type == 'set':
-                        selected_filters[filter_id] = [filter_value]
+                        self.selected_filters[filter_id] = [filter_value]
                 elif 'filterclear' in self.request.GET:
-                    selected_filters = {}
+                    self.selected_filters = {}
 
-                if not selected_filters:
+                if not self.selected_filters:
                     self.filter_string = ''
                 else:
-                    self.filter_string = self.encode_filters(selected_filters)
+                    self.filter_string = self.encode_filters(self.selected_filters)
 
                 self.return_data = HttpResponseRedirect(self.link_for_page(skip_page=True))
 
@@ -233,33 +287,54 @@ class CategoryData:
                 return
 
             for filter_id, filter_data in filters.items():
-                if filter_id in selected_filters:
-                    for value_id, value_data in filter_data['values']:
-                        if value_id in selected_filters[filter_id]:
+                if filter_id in self.selected_filters:
+
+                    if filter_id == "price":
+                        for value_id, value_data in filter_data['values']:
                             value_data['active'] = True
                             filter_data['skip_unaviable'] = True
                             filter_data['has_active'] = True
+                            value_data['name']= f"{self.selected_filters[filter_id][0]} - {self.selected_filters[filter_id][1]}"
+                    else:
+                        for value_id, value_data in filter_data['values']:
+                            if value_id in self.selected_filters[filter_id]:
+                                value_data['active'] = True
+                                filter_data['skip_unaviable'] = True
+                                filter_data['has_active'] = True
 
         self.filters = filters
         self.filters_order = filters_order
 
     def get_q_filters(self):
         filters_q = []
+        filters_q_w = []
 
         if FILTERS_ENABLED:
             for filter_id, filter_data in self.filters.items():
                 filter_arr = Q()
-                for value_id, value_data in filter_data['values']:
-                    if value_data['active']:
-                        if filter_data['filter_type'] == 'or':
-                            filter_arr |= value_data['filter']
-                        else:
-                            filters_q.append(value_data['filter'])
-                if filter_arr:
-                    filters_q.append(filter_arr)
-        return filters_q
 
-    def set_aviable_filters(self, products):
+
+                if "type" in filter_data and filter_data['type'] == "price_range":
+                    if filter_id in self.selected_filters:
+                        filters_q.append(
+                            Q(price__gte=self.selected_filters[filter_id][0]) & Q(price__lte=self.selected_filters[filter_id][1]) |
+                            Q(discount_price__gte=self.selected_filters[filter_id][0]) & Q(discount_price__lte=self.selected_filters[filter_id][1])
+                        )
+                else:
+                    for value_id, value_data in filter_data['values']:
+                        if value_data['active']:
+                            if filter_data['filter_type'] == 'or':
+                                filter_arr |= value_data['filter']
+                            else:
+                                filters_q.append(value_data['filter'])
+                                filters_q_w.append(value_data['filter'])
+                    if filter_arr:
+                        filters_q.append(filter_arr)
+                        filters_q_w.append(filter_arr)
+
+        return filters_q, filters_q_w
+
+    def set_available_filters(self, products):
         if FILTERS_ENABLED:
             for filter_id, filter_data in self.filters.items():
                 if hasattr(filter_data['filter_aviability_check'], '__call__'):
@@ -275,7 +350,11 @@ class CategoryData:
         filters_ret = {}
         for filter_item in filters.split('_'):
             filter_id, filter_data = filter_item.split('-', 2)
-            filters_ret[str(filter_id)] = [int(x) for x in filter_data.split(':')]
+
+            try:
+                filters_ret[str(filter_id)] = [int(x) for x in filter_data.split(':')]
+            except ValueError:
+                filters_ret[str(filter_id)] = [Decimal(x) for x in filter_data.split(':')]
         return filters_ret
 
     def link_for_page(self, sorting=None, skip_page=True):
