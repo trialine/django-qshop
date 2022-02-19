@@ -1,23 +1,23 @@
-from django.contrib import admin
-from .models import (
-    Product, ProductVariationValue, ProductVariation, ProductImage, ParametersSet,
-    Parameter, ProductToParameter, ParameterValue
-)
-
-from .admin_forms import ProductToParameterFormset, CategoryForm, PriceForm, ProductAdminForm, ProductToParameterForm
-from .admin_filters import ProductCategoryListFilter
+from decimal import Decimal
 
 from django.conf import settings
-from django.shortcuts import render
+from django.contrib import admin
 from django.contrib.admin import helpers
 from django.http import HttpResponseRedirect
+from django.shortcuts import render
+from django.utils.safestring import mark_safe
+from django.utils.translation import ugettext_lazy as _
 from sitemenu import import_item
 from sitemenu.sitemenu_settings import MENUCLASS
-from decimal import Decimal
-from django.utils.translation import ugettext_lazy as _
 
 from qshop.qshop_settings import ENABLE_PROMO_CODES
 
+from .admin_filters import ProductCategoryListFilter
+from .admin_forms import (CategoryForm, PriceForm, ProductAdminForm,
+                          ProductToParameterForm, ProductToParameterFormset)
+from .models import (Parameter, ParametersSet, ParameterValue, Product,
+                     ProductImage, ProductToParameter, ProductVariation,
+                     ProductVariationValue)
 
 Menu = import_item(MENUCLASS)
 
@@ -28,7 +28,9 @@ parent_classes = {
     'StackedInline': admin.StackedInline,
 }
 if 'modeltranslation' in settings.INSTALLED_APPS:
-    from modeltranslation.admin import TranslationAdmin, TranslationTabularInline, TranslationStackedInline
+    from modeltranslation.admin import (TranslationAdmin,
+                                        TranslationStackedInline,
+                                        TranslationTabularInline)
     USE_TRANSLATION = True
     parent_classes_translation = {
         'ModelAdmin': TranslationAdmin,
@@ -45,14 +47,14 @@ if 'tinymce' in settings.INSTALLED_APPS:
         models.TextField: {'widget': AdminTinyMCE},
     }
 elif 'ckeditor_uploader' in settings.INSTALLED_APPS:
-    from django.db import models
     from ckeditor_uploader.widgets import CKEditorUploadingWidget
+    from django.db import models
     qshop_formfield_overrides = {
         models.TextField: {'widget': CKEditorUploadingWidget},
     }
 elif 'ckeditor' in settings.INSTALLED_APPS:
-    from django.db import models
     from ckeditor.widgets import CKEditorWidget
+    from django.db import models
     qshop_formfield_overrides = {
         models.TextField: {'widget': CKEditorWidget},
     }
@@ -100,7 +102,8 @@ class ProductToParameterInline(getParentClass('TabularInline', ProductToParamete
 
     def get_parameter_name(self, obj=None):
         if obj:
-            return obj.parameter
+            data_class = "tr-is-heading" if obj.parameter.is_heading else 'tr-is-parameter'
+            return mark_safe(f"<span class='j_colored-tr' data-class='{data_class}'>{obj.parameter}</span>")
     get_parameter_name.short_description = 'Parameter'
 
 

@@ -203,7 +203,8 @@ class ProductAbstract(models.Model, PricingModel):
             ret.append({
                 'id': item.value_id,
                 'name': item.parameter.name,
-                'value': item.value.value
+                'value': getattr(item.value, 'value', None),
+                'is_heading': item.parameter.is_heading
             })
 
         self._parameters_list = ret
@@ -215,7 +216,7 @@ class ProductAbstract(models.Model, PricingModel):
         except:
             self._parameters_for_product = ProductToParameter.objects.select_related(
                 'parameter', 'value'
-            ).order_by('parameter__order').filter(product=self).exclude(value=None)
+            ).order_by('parameter__order', 'parameter__id').filter(product=self).exclude(value=None, parameter__is_heading=False)
             return self._parameters_for_product
 
     def get_additional_images(self):
@@ -338,6 +339,7 @@ class ParameterAbstract(models.Model):
     parameters_set = models.ForeignKey('ParametersSet', verbose_name=_('parameters set'), on_delete=models.CASCADE)
     name = models.CharField(_('title'), max_length=128)
     is_filter = models.BooleanField(_('is filter'), default=True)
+    is_heading = models.BooleanField(_('is heading'), default=False)
     order = models.SmallIntegerField(_('sort'), default=0)
 
     class Meta:
@@ -386,9 +388,13 @@ class ProductToParameterAbstract(models.Model):
 
     class Meta:
         abstract = True
+        ordering = ['parameter__order', 'parameter__id']
 
     def __str__(self):
         return 'Product Field Nr. %d' % self.parameter_id
+
+    def is_heading(self):
+        return self.parameter.is_heading
 
 
 class CurrencyAbstract(models.Model):

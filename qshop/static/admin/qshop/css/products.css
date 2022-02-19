@@ -4,3 +4,18 @@
 
 #productvariation_set-group .tabular td.original p {display: none;}
 #productvariation_set-group .tabular tr.has_original td {padding-top: 5px;}
+
+
+tr.tr-is-heading {
+    background: #ddf4ff;
+}
+
+tr.tr-is-heading .field-value .related-widget-wrapper {
+    display: none;
+}
+
+tr.tr-is-heading .field-get_parameter_name p {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 16px 0 0 0;
+}
