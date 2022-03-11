@@ -1,12 +1,12 @@
 (function($) {
     $(function() {
         $('#producttoparameter_set-group .form-row').each(function(){
-            id = $('.j_parameter_id').val();
+            id = $('.j_parameter_id', this).val();
 
             // add-link add hide_parameter
             add_link = $('a.add-related', this);
             add_link_href = add_link.attr('href');
-            console.log(add_link_href);
+
             add_link.attr(
                 'href',
                 add_link_href + (add_link_href.indexOf('?')!= -1 ? '&' : '?') + 'parameter=' + id + '&hide_parameter'

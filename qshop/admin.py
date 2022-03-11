@@ -97,8 +97,7 @@ class ProductToParameterInline(getParentClass('TabularInline', ProductToParamete
         return False
 
     def get_queryset(self, request):
-        # TODO: move to Python 3.x syntax super()
-        return super(ProductToParameterInline, self).get_queryset(request).select_related('parameter')
+        return super().get_queryset(request).select_related('parameter')
 
     def get_parameter_name(self, obj=None):
         if obj:
@@ -123,7 +122,7 @@ class ProductAdmin(getParentClass('ModelAdmin', Product)):
     form = ProductAdminForm
 
     def save_formset(self, request, form, formset, change):
-        super(ProductAdmin, self).save_formset(request, form, formset, change)
+        super().save_formset(request, form, formset, change)
 
         if formset.model == ProductToParameter:
             obj = formset.instance
@@ -165,10 +164,10 @@ class ProductAdmin(getParentClass('ModelAdmin', Product)):
             obj.save()
 
     def __init__(self, *args, **kwargs):
-        super(ProductAdmin, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def save_model(self, request, obj, form, change):
-        super(ProductAdmin, self).save_model(request, obj, form, change)
+        super().save_model(request, obj, form, change)
 
     def get_readonly_fields(self, request, obj=None):
         if (('productvariation_set-0-variation' in request.POST and

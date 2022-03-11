@@ -16,7 +16,7 @@ Menu = import_item(MENUCLASS)
 
 class ProductToParameterFormset(BaseInlineFormSet):
     def add_fields(self, form, index):
-        super(ProductToParameterFormset, self).add_fields(form, index)
+        super().add_fields(form, index)
 
         values = ParameterValue.objects.none()
         if form.instance.pk:
@@ -37,7 +37,7 @@ class ProductToParameterFormset(BaseInlineFormSet):
 
 class ProductToParameterForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
-        super(ProductToParameterForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.fields['parameter'].widget = forms.HiddenInput(attrs={'class': 'j_parameter_id'})
 
 
@@ -46,7 +46,7 @@ class CategoryForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         qs = kwargs.pop('qs', None)
-        super(CategoryForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         if qs:
             self.fields['category'].queryset = qs
 
@@ -65,7 +65,7 @@ class ProductAdminForm(forms.ModelForm):
             }
 
     def __init__(self, *args, **kwargs):
-        super(ProductAdminForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         if 'weight' in self.fields:
             self.fields['weight'].help_text = 'in gramms'
         if 'category' in self.fields:
