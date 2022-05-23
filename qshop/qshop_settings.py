@@ -90,7 +90,7 @@ FILTERS_FIELDS = getattr(settings, 'QSHOP_FILTERS_FIELDS', [])
 FILTERS_ORDER = getattr(settings, 'QSHOP_FILTERS_ORDER', [
     'p',  # properties
     'v',  # variations
-    'price_range',  # range decimal
+    'range',  # range decimal
 
 ])
 
