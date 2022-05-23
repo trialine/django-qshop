@@ -51,25 +51,31 @@ class CategoryData:
             self.return_data = HttpResponseRedirect(self.link_for_page(skip_page=False))
             self.need_return = True
 
-    def process_products(self):
+    def filter_products(self, exclude_filter_id=None):
         if self.init_products is not None:
-            self.products = self.init_products
+            products = self.init_products
         elif not self.menu.page_type == 'pdis':
-            self.products = Product.in_category_objects.filter(category=self.menu)
+            products = Product.in_category_objects.filter(category=self.menu)
         else:
-            self.products = Product.in_category_objects.exclude(discount_price=None)
+            products = Product.in_category_objects.exclude(discount_price=None)
 
-        filters_q, filters_q_w = self.get_q_filters()
+        filters_q, filters_q_w = self.get_q_filters(exclude_filter_id)
 
         self.products_without_price_filter = []
         for filter_q_w in filters_q_w:
-            self.products_without_price_filter = self.products.filter(filter_q_w)
+            self.products_without_price_filter = products.filter(filter_q_w)
         else:
-            self.products_without_price_filter = self.products
+            self.products_without_price_filter = products
 
 
         for filter_q in filters_q:
-            self.products = self.products.filter(filter_q)
+            products = products.filter(filter_q)
+
+        return products
+
+
+    def process_products(self):
+        self.products = self.filter_products()
 
         if FILTERS_PRECLUDING:
             self.set_available_filters(self.products)
@@ -137,7 +143,7 @@ class CategoryData:
                         filter_id = "p{0}".format(item['parameter__id'])
                         if not filter_id in filters:
                             filters_order.append(filter_id)
-                            filters[filter_id] = {'name': item[parameter_name], 'has_active': False, 'values': [], 'skip_unaviable': False, 'filter_type': 'or', 'filter_aviability_check': self._check_parameter_filter}
+                            filters[filter_id] = {'name': item[parameter_name], 'has_active': False, 'values': [], 'filter_type': 'or', 'filter_aviability_check': self._check_parameter_filter}
                         filters[filter_id]['values'].append(
                             (item['value__id'], {'name': item[value_value], 'active': False, 'unaviable': False, 'count': 0, 'filter': Q(producttoparameter__value_id=item['value__id'])})
                         )
@@ -156,7 +162,7 @@ class CategoryData:
                         else:
                             variation_name = _(VARIATION_FILTER_NAME)
 
-                        filters['v'] = {'name': variation_name, 'has_active': False, 'values': [], 'skip_unaviable': False, 'filter_type': FILTER_BY_VARIATION_TYPE, 'filter_aviability_check': self._check_variation_filter}
+                        filters['v'] = {'name': variation_name, 'has_active': False, 'values': [], 'filter_type': FILTER_BY_VARIATION_TYPE, 'filter_aviability_check': self._check_variation_filter}
                         for variation in variations:
                             filters['v']['values'].append(
                                 (variation.id, {'name': variation.get_filter_name(), 'active': False, 'unaviable': False, 'count': 0, 'filter': Q(productvariation__variation_id=variation.id)})
@@ -195,10 +201,17 @@ class CategoryData:
                         raise Exception('[qShop exception] Filter configuration error: there is no {0} in Product class!'.format(field_name))
                     field = Product._meta.get_field(field_name)
                     model = field.related_model
+
                     items = model.objects.filter(product__category=self.menu, product__hidden=False).distinct()
+
+                    try:
+                        items = items.order_by(field.related_model.get_order_by_in_filter())
+                    except:
+                        pass
+
                     if items:
                         filters_order.append(filter_key)
-                        filters[filter_key] = {'name': field.verbose_name, 'has_active': False, 'values': [], 'skip_unaviable': False, 'filter_type': 'or', 'filter_aviability_check': self._check_foreignkey_filter}
+                        filters[filter_key] = {'name': field.verbose_name, 'has_active': False, 'values': [], 'filter_type': 'or', 'filter_aviability_check': self._check_foreignkey_filter}
                         for item in items:
                             q = {
                                 '{0}_id'.format(field_name): item.id
@@ -292,7 +305,6 @@ class CategoryData:
                     if filter_id == "price":
                         for value_id, value_data in filter_data['values']:
                             value_data['active'] = True
-                            filter_data['skip_unaviable'] = True
                             filter_data['has_active'] = True
                             value_data['name']= f"{self.selected_filters[filter_id][0]} - {self.selected_filters[filter_id][1]}"
                     else:
@@ -305,22 +317,21 @@ class CategoryData:
         self.filters = filters
         self.filters_order = filters_order
 
-    def get_q_filters(self):
+    def get_q_filters(self, exclude_id=None):
         filters_q = []
         filters_q_w = []
 
         if FILTERS_ENABLED:
             for filter_id, filter_data in self.filters.items():
-                filter_arr = Q()
-
-
                 if "type" in filter_data and filter_data['type'] == "price_range":
                     if filter_id in self.selected_filters:
                         filters_q.append(
                             Q(price__gte=self.selected_filters[filter_id][0]) & Q(price__lte=self.selected_filters[filter_id][1]) |
                             Q(discount_price__gte=self.selected_filters[filter_id][0]) & Q(discount_price__lte=self.selected_filters[filter_id][1])
                         )
-                else:
+                elif filter_id != exclude_id:
+                    filter_arr = Q()
+
                     for value_id, value_data in filter_data['values']:
                         if value_data['active']:
                             if filter_data['filter_type'] == 'or':
@@ -391,31 +402,30 @@ class CategoryData:
             yield (item, self.filters[item])
 
     def _check_parameter_filter(self, filter_id, filter_data, products):
-        if not hasattr(self, '_check_parameter_filter_aviable_parameters'):
-            if FILTERS_NEED_COUNT:
-                aviable_parameters_data = ParameterValue.objects.filter(producttoparameter__product__in=products).annotate(total_items=Count('id')).values_list('id', 'total_items')
-                aviable_parameters = []
-                parameters_counts = {}
-                for aviable_parameter, parameter_count in aviable_parameters_data:
-                    aviable_parameters.append(aviable_parameter)
-                    parameters_counts[aviable_parameter] = parameter_count
-            else:
-                aviable_parameters = ProductToParameter.objects.filter(product__in=products).distinct().values_list('value_id', flat=True)
-                parameters_counts = {}
-            self._check_parameter_filter_aviable_parameters = aviable_parameters
-            self._check_parameter_filter_parameters_counts = parameters_counts
+        products = self.filter_products(filter_id)
+        if FILTERS_NEED_COUNT:
+            aviable_parameters_data = ParameterValue.objects.filter(producttoparameter__product__in=products).annotate(total_items=Count('id')).values_list('id', 'total_items')
+            aviable_parameters = []
+            parameters_counts = {}
+            for aviable_parameter, parameter_count in aviable_parameters_data:
+                aviable_parameters.append(aviable_parameter)
+                parameters_counts[aviable_parameter] = parameter_count
+        else:
+            aviable_parameters = ProductToParameter.objects.filter(product__in=products).distinct().values_list('value_id', flat=True)
+            parameters_counts = {}
 
-        aviable_parameters = self._check_parameter_filter_aviable_parameters
-        parameters_counts = self._check_parameter_filter_parameters_counts
 
         for value_id, value_data in filter_data['values']:
             if FILTERS_NEED_COUNT and value_id in parameters_counts:
                 value_data['count'] = parameters_counts[value_id]
             if value_id not in aviable_parameters:
-                if not filter_data['skip_unaviable']:
-                    value_data['unaviable'] = True
+                value_data['unaviable'] = True
+
+
 
     def _check_variation_filter(self, filter_id, filter_data, products):
+        products = self.filter_products(filter_id)
+
         if FILTERS_NEED_COUNT:
             aviable_variations_data = ProductVariationValue.objects.filter(productvariation__product__in=products).annotate(total_items=Count('id')).values_list('id', 'total_items')
             aviable_variations = []
@@ -431,10 +441,11 @@ class CategoryData:
             if FILTERS_NEED_COUNT and value_id in variations_counts:
                 value_data['count'] = variations_counts[value_id]
             if value_id not in aviable_variations:
-                if not filter_data['skip_unaviable']:
-                    value_data['unaviable'] = True
+                value_data['unaviable'] = True
 
     def _check_foreignkey_filter(self, filter_id, filter_data, products):
+        products = self.filter_products(filter_id)
+
         field_name = FILTERS_FIELDS[filter_id]
         field = Product._meta.get_field(field_name)
         model = field.related_model
@@ -456,5 +467,4 @@ class CategoryData:
             if FILTERS_NEED_COUNT and value_id in field_counts:
                 value_data['count'] = field_counts[value_id]
             if value_id not in aviable_field:
-                if not filter_data['skip_unaviable']:
-                    value_data['unaviable'] = True
+                value_data['unaviable'] = True
