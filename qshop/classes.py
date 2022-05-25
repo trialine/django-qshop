@@ -487,5 +487,16 @@ class CategoryData:
     def _check_range_filter(self, filter_id, filter_data):
         products = self.filter_products(filter_id)
         prices = products.aggregate(max_price=Max('price'), min_price=Min('price'))
-        filter_data['min_price'] = math.ceil(prices['min_price'])
-        filter_data['max_price'] = math.floor(prices['max_price'])
+        filter_data['min_price'] = None
+        filter_data['max_price'] = None
+
+        try:
+            filter_data['min_price'] = math.ceil(prices['min_price'])
+        except TypeError:
+            pass
+
+        try:
+            filter_data['max_price'] = math.floor(prices['max_price'])
+        except TypeError:
+            pass
+
