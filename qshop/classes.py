@@ -124,7 +124,6 @@ class CategoryData:
                         'value__id',
                         value_value
                     ).filter(
-                        product__category=self.menu,
                         product__hidden=False,
                         parameter__is_filter=True
                     ).exclude(
@@ -141,12 +140,31 @@ class CategoryData:
                         filter_id = "p{0}".format(item['parameter__id'])
                         if not filter_id in filters:
                             filters_order.append(filter_id)
-                            filters[filter_id] = {'name': item[parameter_name], 'has_active': False, 'values': [], 'filter_type': 'or', 'filter_aviability_check': self._check_parameter_filter}
+                            filters[filter_id] = {
+                                'name': item[parameter_name],
+                                'has_active': False,
+                                'values': [],
+                                'filter_type': 'or',
+                                'filter_aviability_check': self._check_parameter_filter
+                            }
+
                         filters[filter_id]['values'].append(
-                            (item['value__id'], {'name': item[value_value], 'active': False, 'unaviable': False, 'count': 0, 'filter': Q(producttoparameter__value_id=item['value__id'])})
+                            (
+                                item['value__id'], {
+                                    'name': item[value_value],
+                                    'active': False,
+                                    'unaviable': False,
+                                    'count': 0,
+                                    'filter': Q(producttoparameter__value_id=item['value__id'])
+                                }
+                            )
                         )
                 elif filter_key == 'v':
-                    variations = ProductVariationValue.objects.filter(productvariation__product__category=self.menu, productvariation__product__hidden=False).distinct().order_by('value')
+                    variations = ProductVariationValue.objects.filter(
+                        # productvariation__product__category=self.menu,
+                        productvariation__product__hidden=False
+                    ).distinct().order_by('value')
+
                     if variations:
                         filters_order.append('v')
 
@@ -154,17 +172,34 @@ class CategoryData:
                             variation_name = self.menu.get_variation_name()
                         elif hasattr(ParametersSet, 'get_variation_name'):
                             try:
-                                variation_name = ParametersSet.objects.filter(product__category=self.menu)[0].get_variation_name()
+                                variation_name = ParametersSet.objects.filter(
+                                    product__category=self.menu
+                                )[0].get_variation_name()
                             except:
                                 variation_name = _(VARIATION_FILTER_NAME)
                         else:
                             variation_name = _(VARIATION_FILTER_NAME)
 
-                        filters['v'] = {'name': variation_name, 'has_active': False, 'values': [], 'filter_type': FILTER_BY_VARIATION_TYPE, 'filter_aviability_check': self._check_variation_filter}
+                        filters['v'] = {
+                            'name': variation_name,
+                            'has_active': False,
+                            'values': [],
+                            'filter_type': FILTER_BY_VARIATION_TYPE,
+                            'filter_aviability_check': self._check_variation_filter
+                        }
+
                         for variation in variations:
                             filters['v']['values'].append(
-                                (variation.id, {'name': variation.get_filter_name(), 'active': False, 'unaviable': False, 'count': 0, 'filter': Q(productvariation__variation_id=variation.id)})
+                                (variation.id, {
+                                        'name': variation.get_filter_name(),
+                                        'active': False,
+                                        'unaviable': False,
+                                        'count': 0,
+                                        'filter': Q(productvariation__variation_id=variation.id)
+                                    }
+                                )
                             )
+
                 elif filter_key == 'range':
                     for field_name in FILTERS_FIELDS[filter_key]:
                         field = Product._meta.get_field(field_name)
@@ -206,7 +241,7 @@ class CategoryData:
                     field = Product._meta.get_field(field_name)
                     model = field.related_model
 
-                    items = model.objects.filter(product__category=self.menu, product__hidden=False).distinct()
+                    items = model.objects.filter(product__hidden=False).distinct()
 
                     try:
                         items = items.order_by(field.related_model.get_order_by_in_filter())
