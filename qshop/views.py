@@ -1,8 +1,10 @@
+from django.conf import settings
+from django.http import HttpResponseRedirect, Http404
 from django.shortcuts import render, get_object_or_404
+
 from .functions import get_products_page_data
 from .classes import CategoryData
 from .models import Product, Currency
-from django.http import HttpResponseRedirect, Http404
 
 
 def render_shopspage(request, menu, url_add, products=None):
@@ -28,7 +30,7 @@ def render_shopspage(request, menu, url_add, products=None):
         if len(url_add) != 1:
             raise Http404('wrong url_add')
 
-        product = get_object_or_404(Product, articul=url_add[0], category=menu, hidden=False)
+        product = get_object_or_404(Product, articul=url_add[0], category=menu, **{f'hidden_{settings.SITE_ID}': False})
 
         menu._page_title = product.name
 

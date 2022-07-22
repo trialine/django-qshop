@@ -71,7 +71,7 @@ class PricingModel(object):
 
 class CategoryManager(models.Manager):
     def get_queryset(self):
-        return super().get_queryset().filter(hidden=False)
+        return super().get_queryset().filter(**{f'hidden_{settings.SITE_ID}': False})
 
 def articul_validate(articul):
     if not re.match("^[A-Za-z0-9_.-]+\Z$", articul):
@@ -95,7 +95,7 @@ class ProductAbstract(models.Model, PricingModel):
     has_variations = models.BooleanField(_('has variations'), default=False, editable=False)
     parameters_set = models.ForeignKey('ParametersSet', verbose_name=_('parameters set'), on_delete=models.CASCADE)
     articul = models.CharField(_('articul'), max_length=255, validators=[articul_validate], unique=True)
-    hidden = models.BooleanField(_('hidden'), default=False)
+    hidden_1 = models.BooleanField(_('hidden'), default=False)
     name = models.CharField(_('product name'), max_length=128)
     price = models.DecimalField(_('price'), max_digits=12, decimal_places=2, default=0)
     weight = models.FloatField(_('weight'), default=0, blank=True)
@@ -126,6 +126,10 @@ class ProductAbstract(models.Model, PricingModel):
             return _(u"[hidden] {0} (articul: {1})").format(self.name, self.articul)
         else:
             return _(u"{0} (articul: {1})").format(self.name, self.articul)
+
+    @property
+    def hidden(self):
+        return getattr(self, f"hidden_{settings.SITE_ID}")
 
     def admin_price_display(self):
         if self.has_discount():
@@ -554,4 +558,3 @@ class PromoCode(import_item(PROMO_CODE_CLASS) if PROMO_CODE_CLASS else PromoCode
 if LOAD_ADDITIONAL_MODELS:
     for add_model in LOAD_ADDITIONAL_MODELS:
         import_item(add_model)
-

@@ -1,8 +1,9 @@
-import math
 import re
+import math
 from decimal import Decimal
 
 from django.apps import apps
+from django.conf import settings
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db.models import Count, Max, Min, Q
 from django.http import Http404, HttpResponseRedirect
@@ -124,8 +125,8 @@ class CategoryData:
                         'value__id',
                         value_value
                     ).filter(
-                        product__hidden=False,
-                        parameter__is_filter=True
+                        parameter__is_filter=True,
+                        **{f'product__hidden_{settings.SITE_ID}': False}
                     ).exclude(
                         value=None
                     ).order_by(
@@ -160,9 +161,10 @@ class CategoryData:
                             )
                         )
                 elif filter_key == 'v':
+
                     variations = ProductVariationValue.objects.filter(
                         # productvariation__product__category=self.menu,
-                        productvariation__product__hidden=False
+                        **{f'productvariation__product__hidden_{settings.SITE_ID}': False}
                     ).distinct().order_by('value')
 
                     if variations:
@@ -241,7 +243,7 @@ class CategoryData:
                     field = Product._meta.get_field(field_name)
                     model = field.related_model
 
-                    items = model.objects.filter(product__hidden=False).distinct()
+                    items = model.objects.filter(**{f'product__hidden_{settings.SITE_ID}': False}).distinct()
 
                     try:
                         items = items.order_by(field.related_model.get_order_by_in_filter())
@@ -534,4 +536,3 @@ class CategoryData:
             filter_data['max_price'] = math.floor(prices['max_price'])
         except TypeError:
             pass
-
