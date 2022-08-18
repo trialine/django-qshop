@@ -236,6 +236,31 @@ class CategoryData:
                             )
                         )
 
+                elif filter_key == 'c':
+                    for field_name in FILTERS_FIELDS[filter_key]:
+                        field = Product._meta.get_field(field_name)
+                        if not hasattr(field, 'choices'):
+                            raise Exception(
+                                '[qShop exception] Filter configuration error: {0} not choices field in Product class!'.format(field_name)
+                            )
+
+                        filters_order.append(field_name)
+                        filters[field_name] = {
+                            'name': field.verbose_name,
+                            'has_active': False,
+                            'values': [],
+                            'skip_unaviable': False,
+                            'filter_type': 'or',
+                            'filter_aviability_check': self._check_choices_field_filter
+                        }
+                        for choice in field.choices:
+                            q = {
+                                field_name: choice[0]
+                            }
+                            filters[field_name]['values'].append(
+                                (int(choice[0]), {'name': choice[1], 'active': False, 'unaviable': False, 'count': 0, 'filter': Q(**q)})
+                            )
+
                 else:
                     field_name = FILTERS_FIELDS[filter_key]
                     if not hasattr(Product, field_name):
@@ -272,8 +297,28 @@ class CategoryData:
                                     }
                                 )
                             )
-
         return filters, filters_order
+
+    def _check_choices_field_filter(self, filter_id, filter_data):
+        products = self.filter_products(filter_id)
+        if FILTERS_NEED_COUNT:
+            aviable_field_data = products.values(filter_id).annotate(total_items=Count(filter_id)).values_list(filter_id, 'total_items')
+            field_counts = {}
+            aviable_field = []
+            for item, count in aviable_field_data:
+                aviable_field.append(item)
+                field_counts[item] = count
+        else:
+            aviable_field = products.distinct().values_list(filter_id, flat=True)
+            field_counts = {}
+
+        for value_id, value_data in filter_data['values']:
+            value_id = str(value_id)
+            if FILTERS_NEED_COUNT and value_id in field_counts:
+                value_data['count'] = field_counts[value_id]
+            if value_id not in aviable_field:
+                if not filter_data['skip_unaviable']:
+                    value_data['unaviable'] = True
 
     def process_filters(self):
         filters, filters_order = self._get_filters_data()
@@ -412,7 +457,6 @@ class CategoryData:
         filters_ret = {}
         for filter_item in filters.split('_'):
             filter_id, filter_data = filter_item.split('-', 2)
-
             try:
                 filters_ret[str(filter_id)] = [int(x) for x in filter_data.split(':')]
             except ValueError:
