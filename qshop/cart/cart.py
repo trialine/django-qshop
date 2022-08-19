@@ -29,7 +29,7 @@ class ItemTooMany(Exception):
     pass
 
 
-class Cart:
+class CartAbstract:
     def __init__(self, request, cart=None):
         self.__request = request
         if cart:
@@ -309,3 +309,7 @@ class Cart:
     def set_promo_code(self, promo_code):
         self.cart.promo_code = promo_code
         self.cart.save()
+
+
+class Cart(import_item(qshop_settings.CART_CLASS) if qshop_settings.CART_CLASS else CartAbstract):
+    pass
