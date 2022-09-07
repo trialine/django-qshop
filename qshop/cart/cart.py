@@ -310,6 +310,10 @@ class CartAbstract:
         self.cart.promo_code = promo_code
         self.cart.save()
 
+    def unset_promo_code(self):
+        self.cart.promo_code = None
+        self.cart.save()
+
 
 class Cart(import_item(qshop_settings.CART_CLASS) if qshop_settings.CART_CLASS else CartAbstract):
     pass

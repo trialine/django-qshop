@@ -10,7 +10,7 @@ if CART_ORDER_VIEW:
     qshop_order_view = import_item(CART_ORDER_VIEW)
 
 if ENABLE_PROMO_CODES:
-    from .views import ApplyPromoView
+    from .views import ApplyPromoView, CancelPromoView
 
 
 urlpatterns = [
@@ -44,4 +44,5 @@ elif not ENABLE_QSHOP_DELIVERY:
 if ENABLE_PROMO_CODES:
     urlpatterns += [
         url(r'^apply-promo/$', ApplyPromoView.as_view(), name='apply_promo'),
+        url(r'^cancel-promo/$', CancelPromoView.as_view(), name='cancel_promo'),
     ]

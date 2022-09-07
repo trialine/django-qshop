@@ -45,11 +45,13 @@ if ENABLE_PROMO_CODES:
 
         def clean(self):
             cleaned_data = super(ApplyPromoFormBase, self).clean()
-            self.promo_code = PromoCode.find_by_code(cleaned_data.get('code', None))
+            code = cleaned_data.get('code', None)
+            if code:
+                self.promo_code = PromoCode.find_by_code(code)
 
-            if not self.promo_code:
-                self.add_error('code', _('Invalid promo code'))
+                if not self.promo_code:
+                    self.add_error('code', _('Invalid promo code'))
 
-            if self.promo_code and self.promo_code.min_sum > self.cart.total_price_wo_discount_wo_vat_reduction():
-                self.add_error('code', _('Cart total must be at least {}').format(self.promo_code.min_sum))
+                if self.promo_code and self.promo_code.min_sum > self.cart.total_price_wo_discount_wo_vat_reduction():
+                    self.add_error('code', _('Cart total must be at least {}').format(self.promo_code.min_sum))
             return cleaned_data

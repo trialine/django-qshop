@@ -1,17 +1,20 @@
 import re
+
 from django.contrib import messages
 from django.http import HttpResponseRedirect
+from django.shortcuts import get_object_or_404, render
+from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
-from django.shortcuts import render, get_object_or_404
-from django.views.generic import CreateView, TemplateView, FormView
+from django.views.generic import CreateView, FormView, TemplateView, View
 from qshop import qshop_settings
+from qshop.qshop_settings import CART_CLASS
+
+from ..models import Product
 from .cart import ItemTooMany
 from .forms import OrderForm
-from ..models import Product
 from .models import Order
-from qshop.qshop_settings import CART_CLASS
 
 if CART_CLASS:
     from sitemenu import import_item
@@ -251,3 +254,9 @@ if qshop_settings.ENABLE_PROMO_CODES:
         def form_valid(self, form):
             form.cart.set_promo_code(form.promo_code)
             return super(ApplyPromoView, self).form_valid(form)
+
+    class CancelPromoView(View):
+        def get(self, request, *args, **kwargs):
+            cart = Cart(self.request)
+            cart.unset_promo_code()
+            return TemplateResponse(request, 'qshop/cart/promo_code_response.html', {'apply_promo_form': ApplyPromoForm()})
