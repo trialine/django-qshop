@@ -14,7 +14,7 @@ from django.http import HttpResponseRedirect
 from sitemenu import import_item
 from sitemenu.sitemenu_settings import MENUCLASS
 from decimal import Decimal
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from qshop.qshop_settings import ENABLE_PROMO_CODES
 

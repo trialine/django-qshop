@@ -4,7 +4,7 @@ from django.db import models
 from django.conf import settings
 from django.urls import reverse
 from django.utils.html import format_html
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.utils.safestring import mark_safe
 from easy_thumbnails.fields import ThumbnailerImageField
 
@@ -548,4 +548,3 @@ class PromoCode(import_item(PROMO_CODE_CLASS) if PROMO_CODE_CLASS else PromoCode
 if LOAD_ADDITIONAL_MODELS:
     for add_model in LOAD_ADDITIONAL_MODELS:
         import_item(add_model)
-

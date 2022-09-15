@@ -6,8 +6,9 @@ from django.db.models import Q
 from .qshop_settings import PRODUCTS_ON_PAGE, FILTERS_ENABLED, FILTERS_NEED_COUNT, FILTERS_PRECLUDING, FILTERS_FIELDS, FILTERS_ORDER, VARIATION_FILTER_NAME, FILTER_BY_VARIATION_TYPE
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Count
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.apps import apps
+
 
 class CategoryData:
     need_return = False

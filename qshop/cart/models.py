@@ -5,7 +5,7 @@ from django.db import models
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.safestring import mark_safe
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from qshop.mails import sendMail
 from qshop import qshop_settings
 from sitemenu import import_item

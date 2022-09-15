@@ -2,7 +2,7 @@ import re
 from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.urls import reverse
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render, get_object_or_404
 from django.views.generic import CreateView, TemplateView, FormView

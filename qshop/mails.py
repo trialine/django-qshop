@@ -1,7 +1,7 @@
 from django.core.mail import EmailMessage
 from django.template.loader import render_to_string
 from django.template import TemplateDoesNotExist
-from django.utils.translation import ugettext_lazy as _, ugettext as __
+from django.utils.translation import gettext_lazy as _, ugettext as __
 from qshop.qshop_settings import MAIL_TYPES
 from django.conf import settings
 
