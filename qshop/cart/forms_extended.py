@@ -1,15 +1,13 @@
 from django import forms
-from django.utils.translation import ugettext as _
-
-from ..mails import sendMail
-from .models import Order
-from qshop.qshop_settings import DELIVERY_REQUIRED, ENABLE_PAYMENTS, ENABLE_QSHOP_DELIVERY
-from .models import PickupPoint
 from django.db.models import Q
+from django.utils.translation import gettext as _
+from qshop.qshop_settings import DELIVERY_REQUIRED, ENABLE_PAYMENTS, ENABLE_QSHOP_DELIVERY
 
+from .models import Order, PickupPoint
 
 if ENABLE_QSHOP_DELIVERY:
     from .models import DeliveryCountry, DeliveryType
+
     class OrderExtendedForm(forms.ModelForm):
         class Meta:
             model = Order

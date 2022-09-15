@@ -2,7 +2,6 @@ from django import template
 from ..models import Currency
 from ..cart.cart import Cart
 from ..functions import get_catalogue_root
-from decimal import Decimal
 register = template.Library()
 
 
@@ -10,15 +9,6 @@ register = template.Library()
 # def test_field(context, field):
 #     import ipdb; ipdb.set_trace()
 #     return ''
-
-@register.simple_tag(takes_context=True)
-def qshop_cart_products(context, as_var=None):
-    cart = Cart(context['request'])
-    if as_var:
-        context[as_var] = cart.get_products()
-        return ''
-    return cart.get_products()
-
 
 @register.simple_tag(takes_context=True)
 def qshop_cart_products(context, as_var=None):

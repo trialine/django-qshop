@@ -25,7 +25,7 @@ CURRENCY_CLASS = getattr(settings, 'QSHOP_CURRENCY_CLASS', None)
 LOAD_ADDITIONAL_MODELS = getattr(settings, 'QSHOP_LOAD_ADDITIONAL_MODELS', None)
 
 
-CART_CLASS = getattr(settings, 'QSHOP_CART_CLASS', 'qshop.cart.cart.Cart') # cart class
+CART_CLASS = getattr(settings, 'QSHOP_CART_CLASS', None) # cart class
 CART_ORDER_CLASS = getattr(settings, 'QSHOP_CART_ORDER_CLASS', None) # cart model
 CART_ORDER_FORM = getattr(settings, 'QSHOP_CART_ORDER_FORM', None)
 CART_MODEL_CLASS = getattr(settings, 'QSHOP_CART_MODEL_CLASS', None)
@@ -46,8 +46,13 @@ DELIVERY_COUNTRY_CLASS = getattr(settings, 'QSHOP_DELIVERY_COUNTRY_CLASS', 'qsho
 DELIVERY_TYPE_CLASS = getattr(settings, 'QSHOP_DELIVERY_TYPE_CLASS', None)
 DELIVERY_CALCULATION_CLASS = getattr(settings, 'QSHOP_DELIVERY_CALCULATION_CLASS', None)
 PICKUP_POINT_CLASS = getattr(settings, 'QSHOP_PICKUP_POINT_CLASS', None)
+
 ENABLE_OMNIVA_PARCEL_SYNC = getattr(settings, 'QSHOP_ENABLE_OMNIVA_PARCEL_SYNC', False)
+OMNIVA_PARCEL_DATA_URL = getattr(settings, 'QSHOP_OMNIVA_PARCEL_DATA_URL', 'https://www.omniva.ee/locations.json')
+
 ENABLE_DPD_PARCEL_SYNC = getattr(settings, 'QSHOP_ENABLE_DPD_PARCEL_SYNC', False)
+DPD_PARCEL_DATA_URL = getattr(settings, 'QSHOP_DPD_PARCEL_DATA_URL', 'http://ftp.dpdbaltics.com/PickupParcelShopData.json')
+
 
 
 # DELIVERY_TYPE_ADDRESS_CLASS = getattr(settings, 'QSHOP_DELIVERY_TYPE_ADDRESS_CLASS', None)

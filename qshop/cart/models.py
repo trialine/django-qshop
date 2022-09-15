@@ -1,17 +1,17 @@
 import datetime
+import json
 from decimal import Decimal
-from ipaddress import ip_address
+
+import requests
 from django.db import models
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
-from qshop.mails import sendMail
 from qshop import qshop_settings
+from qshop.mails import sendMail
 from sitemenu import import_item
-import json
-import requests
-from urllib.request import urlretrieve
+
 from ..models import Currency, Product, ProductVariation
 
 PAYMENT_CLASSES = {}
@@ -528,16 +528,16 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
         def __str__(self):
             return str(self.title)
 
-
         def sync_dpd_parcel(self, *args, **options):
-            paracel_machines = json.loads(requests.get("http://ftp.dpdbaltics.com/PickupParcelShopData.json").content)
+            paracel_machines = json.loads(requests.get(qshop_settings.DPD_PARCEL_DATA_URL).content)
+
             if paracel_machines:
                 self.pickuppoint_set.update(is_active=False)
                 delivery_countries = self.delivery_country.values_list('iso2_code', flat=True)
                 for paracel_machine in paracel_machines:
                     if paracel_machine['zipCode'] and paracel_machine['countryCode'] in delivery_countries:
                         self.pickuppoint_set.update_or_create(
-                            zip_code = paracel_machine['zipCode'],
+                            zip_code=paracel_machine['zipCode'],
                             defaults={
                                 'title': paracel_machine['companyName'],
                                 'address': paracel_machine['street'],
@@ -547,17 +547,17 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
                             }
                         )
 
-
         def sync_omniva_parcel(self, *args, **options):
-            paracel_machines = json.loads(requests.get("https://www.omniva.ee/locations.json").content)
+            paracel_machines = json.loads(requests.get(qshop_settings.OMNIVA_PARCEL_DATA_URL).content)
+
             if paracel_machines:
                 self.pickuppoint_set.update(is_active=False)
                 delivery_countries = self.delivery_country.values_list('iso2_code', flat=True)
                 for paracel_machine in paracel_machines:
-                    # TYPE Value 0 = Parcel machine (all Baltic countries)
+
                     if paracel_machine['TYPE'] == "0" and paracel_machine['ZIP'] and paracel_machine['A0_NAME'] in delivery_countries:
                         self.pickuppoint_set.update_or_create(
-                            zip_code = paracel_machine['ZIP'],
+                            zip_code=paracel_machine['ZIP'],
                             defaults={
                                 'title': paracel_machine['NAME'],
                                 'address': self.get_omniva_address(paracel_machine),
@@ -566,7 +566,6 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
                                 'is_active': True,
                             }
                         )
-
 
         def get_omniva_address(self, paracel_machine):
             if paracel_machine['A2_NAME'] == "NULL":
@@ -619,6 +618,7 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
 
     class PickupPoint(import_item(qshop_settings.PICKUP_POINT_CLASS) if qshop_settings.PICKUP_POINT_CLASS else PickupPointAbstract):
         pass
+
 
 class Order(import_item(qshop_settings.CART_ORDER_CLASS) if qshop_settings.CART_ORDER_CLASS else OrderAbstractDefault):
     pass

@@ -1,4 +1,4 @@
-from django.conf.urls import url
+from django.urls import path
 
 from qshop.qshop_settings import CART_ORDER_VIEW, ENABLE_QSHOP_DELIVERY, ENABLE_PROMO_CODES
 
@@ -14,34 +14,34 @@ if ENABLE_PROMO_CODES:
 
 
 urlpatterns = [
-    url(r'^$', CartDetailView.as_view(), name='cart'),
-    url(r'^add/(?P<product_id>\d+)/$', add_to_cart, name='add_to_cart'),
-    url(r'^remove/(?P<item_id>\d+)/$', remove_from_cart, name='remove_from_cart'),
-    url(r'^update/$', update_cart, name='update_cart'),
+    path('', CartDetailView.as_view(), name='cart'),
+    path('add/<product_id>/', add_to_cart, name='add_to_cart'),
+    path('remove/<item_id>/', remove_from_cart, name='remove_from_cart'),
+    path('update/', update_cart, name='update_cart'),
 
-    url(r'^order/success/$', cart_order_success, name='cart_order_success'),
-    url(r'^order/cancelled/$', cart_order_cancelled, name='cart_order_cancelled'),
-    url(r'^order/error/$', cart_order_error, name='cart_order_error'),
-    url(r'^order/cancelled/(?P<order_id>\d+)/$', cart_order_cancelled, name='cart_order_cancelled'),
+    path('order/success/', cart_order_success, name='cart_order_success'),
+    path('order/cancelled/', cart_order_cancelled, name='cart_order_cancelled'),
+    path('order/cancelled/<order_id>/', cart_order_cancelled, name='cart_order_cancelled'),
+    path('order/error/', cart_order_error, name='cart_order_error'),
 ]
 
 if ENABLE_QSHOP_DELIVERY:
     urlpatterns += [
-        url(r'^order/$', OrderDetailView.as_view(), name='order_cart'),
-        url(r'^order/ajax-submit-order/$', AjaxOrderDetailView.as_view(), name='ajax_order_cart'),
+        path('order/', OrderDetailView.as_view(), name='order_cart'),
+        path('order/ajax-submit-order/', AjaxOrderDetailView.as_view(), name='ajax_order_cart'),
     ]
 
 if CART_ORDER_VIEW:
     urlpatterns += [
-        url(r'^order/$', qshop_order_view, name='order_cart')
+        path('order/', qshop_order_view, name='order_cart')
     ]
 elif not ENABLE_QSHOP_DELIVERY:
     from . import views
     urlpatterns += [
-        url(r'^order/$', views.order_cart, name='order_cart'),
+        path('order/', views.order_cart, name='order_cart'),
     ]
 
 if ENABLE_PROMO_CODES:
     urlpatterns += [
-        url(r'^apply-promo/$', ApplyPromoView.as_view(), name='apply_promo'),
+        path('apply-promo/', ApplyPromoView.as_view(), name='apply_promo'),
     ]
