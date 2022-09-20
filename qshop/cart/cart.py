@@ -52,13 +52,14 @@ class CartAbstract:
             yield item
 
     def update_prices(self):
-        items = []
-        for item in self.get_products():
-            self.check_item(item)
-            if item.id:
-                item.unit_price = item.get_product().get_price(default_currency=True)
-                items.append(item)
-        models.Item.objects.bulk_update(items, ['unit_price'])
+        if self.cart.id:
+            items = []
+            for item in self.get_products():
+                self.check_item(item)
+                if item.id:
+                    item.unit_price = item.get_product().get_price(default_currency=True)
+                    items.append(item)
+            models.Item.objects.bulk_update(items, ['unit_price'])
 
     def check_item(self, item):
         pass

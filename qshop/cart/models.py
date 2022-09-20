@@ -267,21 +267,24 @@ class OrderAbstractDefault(OrderAbstract):
         return mark_safe("<br />".join(self.comments.split("\n")))
     get_comments.short_description = _('comments')
 
+    def send_checkout_email(self):
+        if hasattr(self, 'email'):
+            return sendMail('order_sended', variables={
+                    'order': self,
+                },
+                subject=_("Your order %s accepted") % self.get_id(),
+                mails=[self.email]
+            )
+        return False
 
-class OrderExtendedAbstractDefault(OrderAbstract):
+
+class OrderPersonTypeMixin(models.Model):
     INDIVIDUAL = 0
     LEGAL = 1
 
     PERSON_TYPE_CHOICES = (
         (INDIVIDUAL, _('Individual entity')),
         (LEGAL, _('Legal entity')),
-    )
-
-    DELIVERY_NO = 0
-    DELIVERY_YES = 1
-    DELIVERY_CHOICES = (
-        (DELIVERY_NO, _('No, take in office')),
-        (DELIVERY_YES, _('Yes')),
     )
 
     person_type = models.SmallIntegerField(_('Person type'), choices=PERSON_TYPE_CHOICES, default=INDIVIDUAL)
@@ -301,31 +304,8 @@ class OrderExtendedAbstractDefault(OrderAbstract):
     iban = models.CharField('IBAN', default='', null=True, blank=True, max_length=100)
     bank_account = models.CharField('Account', default='', null=True, blank=True, max_length=100)
 
-    country = models.ForeignKey('DeliveryCountry', verbose_name=_('Country'), on_delete=models.PROTECT, blank=True, null=True)
-    city = models.CharField(_('city'), max_length=128, blank=True, null=True)
-    address = models.CharField(_('address'), max_length=255, blank=True, null=True)
-    zip_code = models.CharField(_('zip'), max_length=128, blank=True, null=True)
-
-    is_delivery = models.SmallIntegerField(_('Is delivery needed'), choices=DELIVERY_CHOICES, default=DELIVERY_NO)
-    shipping_date = models.DateField(_('Shipping date'), blank=True, null=True)
-    delivery_type = models.ForeignKey('DeliveryType', verbose_name=_('delivery type'), related_name="delivery_typ", blank=True, null=True, on_delete=models.SET_NULL)
-    delivery_price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name=_('delivery price'), null=True, blank=True)
-    cart_price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name=_('cart price'), blank=True, null=True)
-    cart_vat_amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name=_('vat amount'), null=True)
-
-    # SHIPPING
-    delivery_country = models.ForeignKey('DeliveryCountry', verbose_name=_('Country'), related_name="delivery_cntr", blank=True, null=True, on_delete=models.SET_NULL)
-    delivery_city = models.CharField(_('city'), max_length=128, blank=True, null=True)
-    delivery_address = models.CharField(_('address'), max_length=128, blank=True, null=True)
-    delivery_zip_code = models.CharField(_('zip'), max_length=128, blank=True, null=True)
-    delivery_pickup_point = models.ForeignKey('PickupPoint', blank=True, null=True, on_delete=models.SET_NULL)
-
-    i_agree = models.BooleanField(_('I agree with terms and conditions'), default=False)
-
     class Meta:
         abstract = True
-        verbose_name = _('order')
-        verbose_name_plural = _('orders')
 
     def __str__(self):
         if self.is_legal:
@@ -360,26 +340,36 @@ class OrderExtendedAbstractDefault(OrderAbstract):
     def is_individual(self):
         return self.person_type == self.INDIVIDUAL
 
+
+class OrderDeliveryMixin(models.Model):
+    DELIVERY_NO = 0
+    DELIVERY_YES = 1
+    DELIVERY_CHOICES = (
+        (DELIVERY_NO, _('No, take in office')),
+        (DELIVERY_YES, _('Yes')),
+    )
+
+    is_delivery = models.SmallIntegerField(_('Is delivery needed'), choices=DELIVERY_CHOICES, default=DELIVERY_NO)
+    shipping_date = models.DateField(_('Shipping date'), blank=True, null=True)
+    delivery_type = models.ForeignKey('DeliveryType', verbose_name=_('delivery type'), related_name="delivery_typ", blank=True, null=True, on_delete=models.SET_NULL)
+    delivery_price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name=_('delivery price'), null=True, blank=True)
+
+    # SHIPPING
+    delivery_country = models.ForeignKey('DeliveryCountry', verbose_name=_('Country'), related_name="delivery_cntr", blank=True, null=True, on_delete=models.SET_NULL)
+    delivery_city = models.CharField(_('city'), max_length=128, blank=True, null=True)
+    delivery_address = models.CharField(_('address'), max_length=128, blank=True, null=True)
+    delivery_zip_code = models.CharField(_('zip'), max_length=128, blank=True, null=True)
+    delivery_pickup_point = models.ForeignKey('PickupPoint', blank=True, null=True, on_delete=models.SET_NULL)
+
+    class Meta:
+        abstract = True
+
     @property
     def is_delivery_needed(self):
         return self.is_delivery == self.DELIVERY_YES
 
-    def get_comments(self):
-        return mark_safe("<br />".join(self.comments.split("\n")))
-    get_comments.short_description = _('comments')
-
     def calculate_delivery(self, cart):
         pass
-
-    def send_checkout_email(self):
-        if hasattr(self, 'email'):
-            return sendMail('order_sended', variables={
-                    'order': self,
-                },
-                subject=_("Your order %s accepted") % self.get_id(),
-                mails=[self.email]
-            )
-        return False
 
     def get_delivery_address(self):
         if self.is_delivery_needed:
@@ -388,6 +378,28 @@ class OrderExtendedAbstractDefault(OrderAbstract):
             return f"{self.delivery_address}, {self.delivery_city}, {self.delivery_zip_code}, {self.delivery_country}"
 
         return ""
+
+
+class OrderExtendedAbstractDefault(OrderPersonTypeMixin, OrderDeliveryMixin, OrderAbstract):
+
+    country = models.ForeignKey('DeliveryCountry', verbose_name=_('Country'), on_delete=models.PROTECT, blank=True, null=True)
+    city = models.CharField(_('city'), max_length=128, blank=True, null=True)
+    address = models.CharField(_('address'), max_length=255, blank=True, null=True)
+    zip_code = models.CharField(_('zip'), max_length=128, blank=True, null=True)
+
+    cart_price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name=_('cart price'), blank=True, null=True)
+    cart_vat_amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name=_('vat amount'), null=True)
+
+    i_agree = models.BooleanField(_('I agree with terms and conditions'), default=False)
+
+    class Meta:
+        abstract = True
+        verbose_name = _('order')
+        verbose_name_plural = _('orders')
+
+    def get_comments(self):
+        return mark_safe("<br />".join(self.comments.split("\n")))
+    get_comments.short_description = _('comments')
 
     def get_total_price(self):
         return (self.cart_price + self.delivery_price).quantize(Decimal('0.01'))

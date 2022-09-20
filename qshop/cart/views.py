@@ -1,23 +1,26 @@
 import re
+
 from django.contrib import messages
 from django.http import HttpResponseRedirect
+from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
-from django.shortcuts import render, get_object_or_404
-from django.views.generic import CreateView, TemplateView, FormView
+from django.views.generic import CreateView, FormView, TemplateView
 from qshop import qshop_settings
+from qshop.qshop_settings import CART_CLASS, CART_ORDER_VIEW
+
+from ..models import Product
 from .cart import ItemTooMany
 from .forms import OrderForm
-from ..models import Product
 from .models import Order
-from qshop.qshop_settings import CART_CLASS
 
 if CART_CLASS:
     from sitemenu import import_item
     Cart = import_item(CART_CLASS)
 else:
     from .cart import Cart
+
 
 def add_to_cart(request, product_id):
     cart = Cart(request)
@@ -103,7 +106,6 @@ def update_cart(request):
     return HttpResponseRedirect(reverse('cart'))
 
 
-
 class CartDetailView(TemplateView):
     template_name = "qshop/cart/cart.html"
 
@@ -159,6 +161,7 @@ class AjaxOrderDetailView(OrderDetailView):
 
         return super().form_invalid(form)
 
+
 def cart_order_success(request):
     order_pk = request.session.get('order_pk', None)
     try:
@@ -189,7 +192,6 @@ def cart_order_error(request):
     return render(request, 'qshop/cart/order_error.html', {
     })
 
-from qshop.qshop_settings import CART_ORDER_VIEW
 
 if CART_ORDER_VIEW:
     from sitemenu import import_item

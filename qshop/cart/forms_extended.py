@@ -78,7 +78,6 @@ if ENABLE_QSHOP_DELIVERY:
             if self.instance.pk:
                 self.restore_field_calculated_values()
 
-
         def restore_field_calculated_values(self):
             self.process_delivery_data(self.instance.delivery_type)
             self.cart.set_delivery_price(self.instance.delivery_type.get_delivery_price(self.instance.delivery_country, self.cart))
@@ -86,14 +85,12 @@ if ENABLE_QSHOP_DELIVERY:
                 self.cart.set_vat_reduction(self.instance.country.get_vat_reduction(self.instance.vat_reg_number, self.instance.person_type))
             self.fields['delivery_type'].queryset = self.get_delivery_types(self.instance.delivery_country)
 
-
         def refresh_instance_data(self):
             self.instance.cart = self.cart.cart
             self.instance.cart_text = self.cart.as_table(standalone=True)
             self.instance.cart_price = self.cart.total_price()
             self.instance.delivery_price = self.cart.delivery_price()
             self.instance.cart_vat_amount = self.cart.vat_amount()
-
 
         def clean(self):
             data = super().clean()
@@ -118,7 +115,6 @@ if ENABLE_QSHOP_DELIVERY:
 
             return data
 
-
         def get_delivery_types(self, delivery_country):
             included_dtypes_ids = []
             if delivery_country:
@@ -135,7 +131,6 @@ if ENABLE_QSHOP_DELIVERY:
                 return DeliveryType.objects.filter(pk__in=included_dtypes_ids)
 
             return DeliveryType.objects.none()
-
 
         def process_delivery_data(self, delivery_type):
             required_fields = ['delivery_type']
@@ -168,7 +163,6 @@ if ENABLE_QSHOP_DELIVERY:
                 self.fields['delivery_pickup_point'].queryset = PickupPoint.objects.filter(delivery_type__delivery_country=delivery_country)
             return delivery_country
 
-
         def clean_delivery_fields(self, data):
             if self.is_delivery == self._meta.model.DELIVERY_YES or self.is_delivery is None:
                 for field in self.process_delivery_data(data.get('delivery_type', None)):
@@ -180,23 +174,19 @@ if ENABLE_QSHOP_DELIVERY:
                                 _('This delivery type cannot deliver to choosed country')
                             ])
 
-
         def get_required_legal_fields(self):
             return ['legal_name', 'reg_number', 'country', 'city', 'address', 'zip_code']
-
 
         def validate_legal_fields(self, data):
             if self.person_type == self._meta.model.LEGAL:
                 for field in self.get_required_legal_fields():
                     self._validate_required_field(data, field)
 
-
         def _validate_required_field(self, cleaned_data, field_name, msg=None):
             if not msg:
                 msg = _('This field is required.')
             if(field_name in cleaned_data and not cleaned_data[field_name]):
                 self._errors[field_name] = self.error_class([msg])
-
 
         def save(self, commit=True):
             if DELIVERY_REQUIRED:
