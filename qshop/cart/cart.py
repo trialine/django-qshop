@@ -68,8 +68,10 @@ class CartAbstract:
         try:
             return self._products
         except Exception:
-            self._products = self.cart.item_set.all().select_related('_real_product')
-            return self._products
+            if self.cart.id:
+                self._products = self.cart.item_set.all().select_related('_real_product')
+                return self._products
+        return []
 
     def total_price_wo_discount_wo_vat_reduction(self, in_default_currency=False):
         total_price = 0
@@ -184,8 +186,10 @@ class CartAbstract:
         try:
             return self._count
         except Exception:
-            self._count = self.cart.item_set.count()
-        return self._count
+            if self.cart.id:
+                self._count = self.cart.item_set.count()
+                return self._count
+        return 0
 
     def total_products_with_qty(self):
         try:
