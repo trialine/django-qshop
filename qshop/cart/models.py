@@ -398,6 +398,7 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
         def get_queryset(self):
             return super().get_queryset().filter(can_draw_up_an_invoice=True)
 
+
     class DeliveryCountryAbstract(models.Model):
         _translation_fields = ['title', 'vat_behavior_reason']
         VAT_NOTHING_TO_DO = 1
@@ -444,8 +445,6 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
 
             return 0
 
-    class DeliveryCountry(import_item(qshop_settings.DELIVERY_COUNTRY_CLASS)):
-        pass
 
     class DeliveryTypeAbstract(models.Model):
         _translation_fields = ['title', 'estimated_time']
@@ -576,8 +575,6 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
                 paracel_machine['A2_NAME'].replace(', {}'.format(paracel_machine['A1_NAME']), "")
             )
 
-    class DeliveryType(import_item(qshop_settings.DELIVERY_TYPE_CLASS) if qshop_settings.DELIVERY_TYPE_CLASS else DeliveryTypeAbstract):
-        pass
 
     class DeliveryCalculationAbstract(models.Model):
         value = models.DecimalField(max_digits=12, decimal_places=2, verbose_name=_('up to'))
@@ -595,8 +592,6 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
                 "{} - {}".format(self.value, Currency.get_fprice(self.delivery_price, format_only=True))
             )
 
-    class DeliveryCalculation(import_item(qshop_settings.DELIVERY_CALCULATION_CLASS) if qshop_settings.DELIVERY_CALCULATION_CLASS else DeliveryCalculationAbstract):
-        pass
 
     class PickupPointAbstract(models.Model):
         title = models.CharField('title', max_length=100)
@@ -617,8 +612,22 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
         def __str__(self):
             return f"{self.title} ({self.zip_code})"
 
+
     class PickupPoint(import_item(qshop_settings.PICKUP_POINT_CLASS) if qshop_settings.PICKUP_POINT_CLASS else PickupPointAbstract):
         pass
+
+
+    class DeliveryCalculation(import_item(qshop_settings.DELIVERY_CALCULATION_CLASS) if qshop_settings.DELIVERY_CALCULATION_CLASS else DeliveryCalculationAbstract):
+        pass
+
+
+    class DeliveryType(import_item(qshop_settings.DELIVERY_TYPE_CLASS) if qshop_settings.DELIVERY_TYPE_CLASS else DeliveryTypeAbstract):
+        pass
+
+
+    class DeliveryCountry(import_item(qshop_settings.DELIVERY_COUNTRY_CLASS) if qshop_settings.DELIVERY_COUNTRY_CLASS else DeliveryCountryAbstract):
+        pass
+
 
 class Order(import_item(qshop_settings.CART_ORDER_CLASS) if qshop_settings.CART_ORDER_CLASS else OrderAbstractDefault):
     pass
