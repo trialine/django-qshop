@@ -40,6 +40,10 @@ class CategoryData:
         self.page_link = menu.get_absolute_url()
         self.init_products = products
 
+        # cache variable to avoid hiting to db in _check_parameter_filter method
+        self._products = {}
+        self._aviable_parameters = {}
+
         for i, x in enumerate(Product.SORT_VARIANTS):
             if sort == x[0]:
                 self.sort = x
@@ -497,26 +501,46 @@ class CategoryData:
             yield (item, self.filters[item])
 
     def _check_parameter_filter(self, filter_id, filter_data):
-        products = self.filter_products(filter_id)
+        """
+        To avoiding duplicates in queries we
+        Presave cache key like: None;p2;p3;p4; - where p2 is filter_id and use same query if query to next filter_id is the same
+        """
+        cache_key = f'None;{";".join(self.selected_filters.keys())};'.replace(f"{filter_id};", "")
+
+        try:
+            products = self._products[cache_key]
+        except Exception:
+            self._products[cache_key] = products = self.filter_products(filter_id)
+
         if FILTERS_NEED_COUNT:
-            aviable_parameters_data = ParameterValue.objects.filter(producttoparameter__product__in=products).annotate(total_items=Count('id')).values_list('id', 'total_items')
+            try:
+                aviable_parameters_data = self._aviable_parameters[cache_key]
+            except Exception:
+                aviable_parameters_data = self._aviable_parameters[cache_key] = ParameterValue.objects.filter(
+                    producttoparameter__product__in=products
+                ).annotate(
+                    total_items=Count('id')
+                ).values_list('id', 'total_items')
+
             aviable_parameters = []
             parameters_counts = {}
             for aviable_parameter, parameter_count in aviable_parameters_data:
                 aviable_parameters.append(aviable_parameter)
                 parameters_counts[aviable_parameter] = parameter_count
         else:
-            aviable_parameters = ProductToParameter.objects.filter(product__in=products).distinct().values_list('value_id', flat=True)
+            try:
+                aviable_parameters = self._aviable_parameters[cache_key]
+            except Exception:
+                self._aviable_parameters[cache_key] = aviable_parameters = ProductToParameter.objects.filter(
+                    product__in=products
+                ).distinct().values_list('value_id', flat=True)
             parameters_counts = {}
-
 
         for value_id, value_data in filter_data['values']:
             if FILTERS_NEED_COUNT and value_id in parameters_counts:
                 value_data['count'] = parameters_counts[value_id]
             if value_id not in aviable_parameters:
                 value_data['unaviable'] = True
-
-
 
     def _check_variation_filter(self, filter_id, filter_data, products):
         products = self.filter_products(filter_id)
