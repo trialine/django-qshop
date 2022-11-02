@@ -1,5 +1,5 @@
-import re
 import math
+import re
 from decimal import Decimal
 
 from django.apps import apps
@@ -9,16 +9,18 @@ from django.db.models import Count, Max, Min, Q
 from django.http import Http404, HttpResponseRedirect
 from django.utils.translation import ugettext_lazy as _
 from natsort import natsorted
+from sitemenu import import_item
 
 from .models import (ParametersSet, ParameterValue, Product,
                      ProductToParameter, ProductVariationValue)
-from .qshop_settings import (FILTER_BY_VARIATION_TYPE, FILTERS_ENABLED,
-                             FILTERS_FIELDS, FILTERS_NEED_COUNT, FILTERS_ORDER,
+from .qshop_settings import (CATEGORY_DATA_CLASS, FILTER_BY_VARIATION_TYPE,
+                             FILTERS_ENABLED, FILTERS_FIELDS,
+                             FILTERS_NEED_COUNT, FILTERS_ORDER,
                              FILTERS_PRECLUDING, PRODUCTS_ON_PAGE,
                              VARIATION_FILTER_NAME)
 
 
-class CategoryData:
+class CategoryDataAbstract:
     need_return = False
     return_data = None
     filters = {}
@@ -604,3 +606,7 @@ class CategoryData:
             filter_data['max_price'] = math.floor(prices['max_price'])
         except TypeError:
             pass
+
+# Create real classes
+class CategoryData(import_item(CATEGORY_DATA_CLASS) if CATEGORY_DATA_CLASS else CategoryDataAbstract):
+    pass

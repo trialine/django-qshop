@@ -1,4 +1,5 @@
 from django.conf import settings
+
 _ = lambda x: x
 
 if not 'sitemenu' in settings.INSTALLED_APPS:
@@ -9,6 +10,8 @@ PRODUCT_ADMIN_CATEGORY_CHECKBOX_WIDGET_ENABLED = getattr(settings, 'QSHOP_PRODUC
 
 
 PRODUCT_CLASS = getattr(settings, 'QSHOP_PRODUCT_CLASS', None)
+
+CATEGORY_DATA_CLASS = getattr(settings, 'QSHOP_CATEGORY_DATA_CLASS', None)
 
 VARIATION_VALUE_CLASS = getattr(settings, 'QSHOP_VARIATION_VALUE_CLASS', None)
 VARIATION_CLASS = getattr(settings, 'QSHOP_VARIATION_CLASS', None)
