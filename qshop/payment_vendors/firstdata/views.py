@@ -1,10 +1,11 @@
 from django.urls import reverse
-from django.http import HttpResponseRedirect
-from django.views.decorators.csrf import csrf_exempt
 from django.utils import translation
-
+from django.views.decorators.csrf import csrf_exempt
 from sitemenu.helpers import get_client_ip
+
 from qshop.cart.models import Order
+from qshop.qshop_settings import REDIRECT_CLASS
+
 from .firstdata import Firstdata
 
 
@@ -33,4 +34,4 @@ def payment_firstdata_return(request):
         order.save()
         redirect_url = reverse('cart_order_error')
 
-    return HttpResponseRedirect(redirect_url)
+    return REDIRECT_CLASS(redirect_url)

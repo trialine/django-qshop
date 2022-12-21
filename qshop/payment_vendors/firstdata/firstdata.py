@@ -1,15 +1,14 @@
 import pprint
 import urllib
+
 import StringIO
-
-from django.urls import reverse
-from django.core.mail import mail_admins
-from django.utils.http import urlquote
-from django.http import HttpResponseRedirect
 from django.conf import settings
-
+from django.core.mail import mail_admins
+from django.urls import reverse
+from django.utils.http import urlquote
 from sitemenu.helpers import get_client_ip
 
+from qshop.qshop_settings import REDIRECT_CLASS
 
 if not all([hasattr(settings, elem) for elem in ['FIRSTDATA_CERT_PATH', 'FIRSTDATA_CERT_PASS']]):
     raise Exception('Project not configured to use Firstdata. You must specify variables in settings:\n\nFIRSTDATA_CERT_PATH = ""\nFIRSTDATA_CERT_PASS = ""')
@@ -167,7 +166,7 @@ class FirstdataPayment(object):
             order.payment_id = merchant_data['TRANSACTION_ID']
             order.add_log_message("### payment started")
             order.save()
-            return HttpResponseRedirect(Firstdata.FIRSTDATA_ECOMM_CLIENT_URL + '?trans_id=' + urlquote(merchant_data['TRANSACTION_ID']))
+            return REDIRECT_CLASS(Firstdata.FIRSTDATA_ECOMM_CLIENT_URL + '?trans_id=' + urlquote(merchant_data['TRANSACTION_ID']))
         else:
             order.payment_id = None
             order.paid_log = pprint.pformat(merchant_data)
@@ -177,4 +176,4 @@ class FirstdataPayment(object):
                 'merchant_data': merchant_data,
             }
             mail_admins("[Django] WARNING: Firstdata payment error", pprint.pformat(error_data))
-            return HttpResponseRedirect(reverse('cart_order_error'))
+            return REDIRECT_CLASS(reverse('cart_order_error'))

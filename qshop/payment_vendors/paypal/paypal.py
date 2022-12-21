@@ -1,7 +1,7 @@
 from qshop.payment_vendors.payment import BasePayment
 from django.conf import settings
 from django.urls import reverse
-from django.http import HttpResponseRedirect
+from qshop.qshop_settings import REDIRECT_CLASS
 
 
 
@@ -83,7 +83,7 @@ class PaypalPayment(BasePayment):
                     redirect_url = link.href
                     order.add_log_message("Redirect for approval: %s" % (redirect_url) )
                     order.save()
-                    return HttpResponseRedirect(redirect_url)
+                    return REDIRECT_CLASS(redirect_url)
 
             order.add_log_message("ERROR: No link in response")
         else:
@@ -107,4 +107,4 @@ class PaypalPayment(BasePayment):
 
         order.save()
 
-        return HttpResponseRedirect(redirect_url)
+        return REDIRECT_CLASS(redirect_url)

@@ -1,14 +1,14 @@
 import re
 
 from django.contrib import messages
-from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import CreateView, FormView, TemplateView
+
 from qshop import qshop_settings
-from qshop.qshop_settings import CART_CLASS, CART_ORDER_VIEW
+from qshop.qshop_settings import CART_CLASS, CART_ORDER_VIEW, REDIRECT_CLASS
 
 from ..models import Product
 from .cart import ItemTooMany
@@ -72,8 +72,8 @@ def add_to_cart(request, product_id):
 
     request._server_cache = {'set_cookie': True}
     if return_url:
-        return HttpResponseRedirect(return_url)
-    return HttpResponseRedirect(reverse('cart'))
+        return REDIRECT_CLASS(return_url)
+    return REDIRECT_CLASS(reverse('cart'))
 
 
 def remove_from_cart(request, item_id):
@@ -81,7 +81,7 @@ def remove_from_cart(request, item_id):
     cart.remove(item_id)
 
     request._server_cache = {'set_cookie': True}
-    return HttpResponseRedirect(reverse('cart'))
+    return REDIRECT_CLASS(reverse('cart'))
 
 
 def update_cart(request):
@@ -103,7 +103,7 @@ def update_cart(request):
             )
 
     request._server_cache = {'set_cookie': True}
-    return HttpResponseRedirect(reverse('cart'))
+    return REDIRECT_CLASS(reverse('cart'))
 
 
 class CartDetailView(TemplateView):
@@ -128,7 +128,7 @@ class OrderDetailView(CreateView):
 
     def get(self, request, *args, **kwargs):
         if self.cart.total_products() < 1:
-            return HttpResponseRedirect(reverse('cart'))
+            return REDIRECT_CLASS(reverse('cart'))
         return super().get(request, *args, **kwargs)
 
     def get_form_kwargs(self):
@@ -171,7 +171,7 @@ def cart_order_success(request):
     try:
         order = Order.objects.get(pk=order_pk)
     except Exception:
-        return HttpResponseRedirect('/')
+        return REDIRECT_CLASS('/')
     return render(request, 'qshop/cart/order_success.html', {
         'order': order,
     })
@@ -220,7 +220,7 @@ def order_cart(request):
                 messages.add_message(request, messages.WARNING, _('Someone already bought product that you are trying to buy.'))
 
     if cart.total_products() < 1:
-        return HttpResponseRedirect(reverse('cart'))
+        return REDIRECT_CLASS(reverse('cart'))
 
     return render(request, 'qshop/cart/order.html', {
         'cart': cart,

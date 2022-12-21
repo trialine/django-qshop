@@ -1,5 +1,5 @@
 from django.urls import reverse
-from django.http import HttpResponseRedirect
+from qshop.qshop_settings import REDIRECT_CLASS
 from django.views.decorators.csrf import csrf_exempt
 from qshop.cart.models import Order
 from .swedbank import SwedbankResponse
@@ -36,4 +36,4 @@ def payment_swedbank_return(request):
         mail_admins("WARNING: Swedbank payment error: not valid response", pprint.pformat(swedbank.get_response()))
         redirect_url = reverse('cart_order_error')
 
-    return HttpResponseRedirect(redirect_url)
+    return REDIRECT_CLASS(redirect_url)

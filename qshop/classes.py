@@ -1,13 +1,29 @@
-from .models import Product, ProductToParameter, ParameterValue, ParametersSet, ProductVariationValue
-from django.http import Http404
-from django.http import HttpResponseRedirect
 import re
-from django.db.models import Q
-from .qshop_settings import PRODUCTS_ON_PAGE, FILTERS_ENABLED, FILTERS_NEED_COUNT, FILTERS_PRECLUDING, FILTERS_FIELDS, FILTERS_ORDER, VARIATION_FILTER_NAME, FILTER_BY_VARIATION_TYPE
-from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-from django.db.models import Count
-from django.utils.translation import gettext_lazy as _
+
 from django.apps import apps
+from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
+from django.db.models import Count, Q
+from django.http import Http404
+from django.utils.translation import gettext_lazy as _
+
+from .models import (
+    ParametersSet,
+    ParameterValue,
+    Product,
+    ProductToParameter,
+    ProductVariationValue,
+)
+from .qshop_settings import (
+    FILTER_BY_VARIATION_TYPE,
+    FILTERS_ENABLED,
+    FILTERS_FIELDS,
+    FILTERS_NEED_COUNT,
+    FILTERS_ORDER,
+    FILTERS_PRECLUDING,
+    PRODUCTS_ON_PAGE,
+    REDIRECT_CLASS,
+    VARIATION_FILTER_NAME,
+)
 
 
 class CategoryData:
@@ -48,7 +64,7 @@ class CategoryData:
         self.process_products()
 
         if self.request.get_full_path() != self.link_for_page(skip_page=False):
-            self.return_data = HttpResponseRedirect(self.link_for_page(skip_page=False))
+            self.return_data = REDIRECT_CLASS(self.link_for_page(skip_page=False))
             self.need_return = True
 
     def filter_products(self, exclude_filter_id=None):
@@ -241,7 +257,7 @@ class CategoryData:
                 else:
                     self.filter_string = self.encode_filters(selected_filters)
 
-                self.return_data = HttpResponseRedirect(self.link_for_page(skip_page=True))
+                self.return_data = REDIRECT_CLASS(self.link_for_page(skip_page=True))
 
                 self.need_return = True
                 return

@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import requests
 from django.db import models
-from django.http import HttpResponseRedirect
+from qshop.qshop_settings import REDIRECT_CLASS
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
@@ -229,7 +229,7 @@ class OrderAbstract(models.Model):
 
     if not qshop_settings.ENABLE_PAYMENTS:
         def get_redirect_response(self):
-            return HttpResponseRedirect(reverse('cart_order_success'))
+            return REDIRECT_CLASS(reverse('cart_order_success'))
     else:
         def get_redirect_response(self):
             payment = PAYMENT_CLASSES[self.payment_method]()

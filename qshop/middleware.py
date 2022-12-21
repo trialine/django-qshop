@@ -1,6 +1,7 @@
 from .models import Currency
-from django.http import HttpResponseRedirect
+from .qshop_settings import REDIRECT_CLASS
 from sitemenu.sitemenu_settings import SERVER_CACHE_DIR
+
 
 class CurrencyMiddleware(object):
 
@@ -15,7 +16,7 @@ class CurrencyMiddleware(object):
                 if SERVER_CACHE_DIR:
                     request._server_cache = {'set_cookie': True}
 
-                return HttpResponseRedirect(request.path)
+                return REDIRECT_CLASS(request.path)
             except:
                 pass
         if not current_currency:

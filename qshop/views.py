@@ -1,8 +1,10 @@
-from django.shortcuts import render, get_object_or_404
-from .functions import get_products_page_data
+from django.http import Http404
+from django.shortcuts import get_object_or_404, render
+
 from .classes import CategoryData
-from .models import Product, Currency
-from django.http import HttpResponseRedirect, Http404
+from .functions import get_products_page_data
+from .models import Currency, Product
+from .qshop_settings import REDIRECT_CLASS
 
 
 def render_shopspage(request, menu, url_add, products=None):
@@ -41,7 +43,7 @@ def render_shopspage(request, menu, url_add, products=None):
 
 def redirect_to_product(request, product_id):
     product = get_object_or_404(Product, pk=product_id)
-    return HttpResponseRedirect(product.get_absolute_url_slow())
+    return REDIRECT_CLASS(product.get_absolute_url_slow())
 
 
 def set_currency(request, currency_code=None):
@@ -53,4 +55,4 @@ def set_currency(request, currency_code=None):
 
     Currency.set_default_currency(currency)
 
-    return HttpResponseRedirect(redirect_url)
+    return REDIRECT_CLASS(redirect_url)

@@ -1,4 +1,6 @@
 from django.conf import settings
+from django.http.response import HttpResponseRedirect
+
 _ = lambda x: x
 
 if not 'sitemenu' in settings.INSTALLED_APPS:
@@ -53,6 +55,7 @@ OMNIVA_PARCEL_DATA_URL = getattr(settings, 'QSHOP_OMNIVA_PARCEL_DATA_URL', 'http
 ENABLE_DPD_PARCEL_SYNC = getattr(settings, 'QSHOP_ENABLE_DPD_PARCEL_SYNC', False)
 DPD_PARCEL_DATA_URL = getattr(settings, 'QSHOP_DPD_PARCEL_DATA_URL', 'http://ftp.dpdbaltics.com/PickupParcelShopData.json')
 
+REDIRECT_CLASS = getattr(settings, 'QSHOP_REDIRECT_CLASS', HttpResponseRedirect)
 
 
 # DELIVERY_TYPE_ADDRESS_CLASS = getattr(settings, 'QSHOP_DELIVERY_TYPE_ADDRESS_CLASS', None)
