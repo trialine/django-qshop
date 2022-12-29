@@ -349,6 +349,7 @@ class ParameterAbstract(models.Model):
     name = models.CharField(_('title'), max_length=128)
     is_filter = models.BooleanField(_('is filter'), default=True)
     order = models.SmallIntegerField(_('sort'), default=0)
+    slug = models.SlugField(_('slug'))
 
     class Meta:
         ordering = ['order']
@@ -374,6 +375,7 @@ class ParameterValueAbstract(models.Model):
     _translation_fields = ['value']
     parameter = models.ForeignKey('Parameter', verbose_name=_('parameter'), on_delete=models.CASCADE)
     value = models.CharField(_('parameter value'), max_length=128)
+    slug = models.SlugField(_('slug'))
 
     class Meta:
         # hack for checking unique_together with modeltranslation

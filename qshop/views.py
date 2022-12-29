@@ -8,13 +8,21 @@ from .qshop_settings import REDIRECT_CLASS
 
 
 def render_shopspage(request, menu, url_add, products=None):
-    filter_string, page_num, sort, show_product = get_products_page_data(url_add)
+    filter_string, page_num, sort, product = get_products_page_data(menu, url_add)
 
-    if not show_product:
+    if product:
+        # render single product page
+        menu._page_title = product.name
+
+        return render(request, 'qshop/productpage.html', {
+            'menu': menu,
+            'url_add': url_add,
+            'product': product,
+        })
+    else:
         # render products page
 
         productdata = CategoryData(request, filter_string, menu, sort, page_num, products)
-
         if productdata.need_return:
             return productdata.return_data
 
@@ -22,22 +30,6 @@ def render_shopspage(request, menu, url_add, products=None):
                 'menu': menu,
                 'url_add': url_add,
                 'productdata': productdata,
-            })
-
-    else:
-        # render single product page
-
-        if len(url_add) != 1:
-            raise Http404('wrong url_add')
-
-        product = get_object_or_404(Product, articul=url_add[0], category=menu, hidden=False)
-
-        menu._page_title = product.name
-
-        return render(request, 'qshop/productpage.html', {
-                'menu': menu,
-                'url_add': url_add,
-                'product': product,
             })
 
 
