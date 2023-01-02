@@ -159,7 +159,7 @@ class CategoryData:
                 filter_string += f'{item["value__slug"]}/'
 
         if not filter_slug and not int(self.page) == 1:
-            self.filter_string += f'page-{self.page}/'
+            filter_string += f'page-{self.page}/'
 
         return self.menu.get_absolute_url() + f'{filter_string}'
 
