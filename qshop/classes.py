@@ -129,11 +129,13 @@ class CategoryData:
         ).order_by(
             'parameter__parameters_set',
             'parameter__order',
-            'value__slug'
+            'parameter__id',
+            'value__slug',
         )
 
+
         self.filters_qs.query.group_by = ['value__slug']
-        self.filters_qs = self.filters_qs.values('value__slug', 'parameter__slug', value_value, filter_name)
+        self.filters_qs = self.filters_qs.values('value__slug', 'parameter__slug', value_value, filter_name, 'parameter__order')
         for item in self.filters_qs:
             filter_is_active = item['value__slug'] in self.filters_set
 
