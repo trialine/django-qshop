@@ -110,7 +110,7 @@ class CategoryData:
         self.products_page = products_page
 
     def set_parameter_filters(self):
-        self.filters = []
+        self.filters = {}
 
         filter_name = 'parameter__name'
         value_value = 'value__value'
@@ -133,24 +133,34 @@ class CategoryData:
             'value__slug',
         )
 
-
         self.filters_qs.query.group_by = ['value__slug']
         self.filters_qs = self.filters_qs.values('value__slug', 'parameter__slug', value_value, filter_name, 'parameter__order')
         for item in self.filters_qs:
-            filter_is_active = item['value__slug'] in self.filters_set
+            value_slug = item['value__slug']
+            parameter_slug = item['parameter__slug']
 
-            self.filters.append({
-                **item,
-                'name': item.get(value_value),
-                'filter_name': item.get(filter_name),
-                'slug': item.get('value__slug'),
-                'filter_slug': item.get('parameter__slug'),
-                'active': filter_is_active,
-                'link': self.get_filter_link(item['value__slug'], exclude=filter_is_active)
+            filter_is_active = value_slug in self.filters_set
+
+            filter = self.filters.get(parameter_slug, {
+                'active': False,
+                'name': item[filter_name],
+                'choices': []
             })
 
-        for item in self.filters:
-            self._check_parameter_filter(item['filter_slug'])
+            filter['choices'].append({
+                 **item,
+                'name': item.get(value_value),
+                'slug': value_slug,
+                'active': filter_is_active,
+                'link': self.get_filter_link(value_slug, exclude=filter_is_active)
+            })
+
+            if filter_is_active:
+                filter['active'] = True
+            self.filters[parameter_slug] = filter
+
+        for slug in self.filters.keys():
+            self._check_parameter_filter(slug)
 
     def get_filter_link(self, filter_slug="", exclude=False):
         filter_string = ""
@@ -172,16 +182,19 @@ class CategoryData:
     def get_q_filters(self, exclude_filter_slug=None):
         filters_q = defaultdict(Q)
 
-        for filter in self.filters:
-            if filter['active'] and not filter['filter_slug'] == exclude_filter_slug:
-                filters_q[filter['filter_slug']] |= (Q(producttoparameter__value__slug=filter['slug']))
+        for slug, filter in self.filters.items():
+            if filter['active'] and not slug == exclude_filter_slug:
+                for item in filter['choices']:
+                    if item['active']:
+                        filters_q[slug] |= (Q(producttoparameter__value__slug=item['slug']))
         return filters_q.values()
 
     def link_for_page(self, sorting=None, skip_page=True):
         filter_string = ""
-        for item in self.filters:
-            if item['value__slug'] in self.filters_set:
-                filter_string += f'{item["value__slug"]}/'
+        for filter in self.filters.values():
+            for item in filter['choices']:
+                if item['value__slug'] in self.filters_set:
+                    filter_string += f'{item["value__slug"]}/'
         return self.menu.get_absolute_url() + f'{filter_string}'
 
     def get_sorting_variants(self):
@@ -216,14 +229,8 @@ class CategoryData:
         aviable_parameters = ProductToParameter.objects.filter(product__in=products).distinct().values_list('value__slug', flat=True)
         # parameters_counts = {}
 
-        for filter in self.filters:
-            if filter['filter_slug'] == slug:
-
-            # if FILTERS_NEED_COUNT and filter in parameters_counts:
-            #     value_data['count'] = parameters_counts[value_id]
-                filter['aviable'] = filter['slug'] in aviable_parameters
-            # if filter['slug'] not in aviable_parameters:
-            #     value_data['unaviable'] = True
+        for filter in self.filters[slug]['choices']:
+            filter['aviable'] = filter['slug'] in aviable_parameters
 
     def _check_variation_filter(self, filter_id, filter_data, products):
         products = self.filter_products(filter_id)
