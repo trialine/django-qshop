@@ -1,6 +1,8 @@
+import json
+import requests
 import datetime
+
 from decimal import Decimal
-from ipaddress import ip_address
 from django.db import models
 from django.http import HttpResponseRedirect
 from django.urls import reverse
@@ -9,9 +11,8 @@ from django.utils.translation import ugettext_lazy as _
 from qshop.mails import sendMail
 from qshop import qshop_settings
 from sitemenu import import_item
-import json
-import requests
-from urllib.request import urlretrieve
+
+from helpers.math import round_decimal
 from ..models import Currency, Product, ProductVariation
 
 PAYMENT_CLASSES = {}
@@ -86,6 +87,7 @@ class CartAbstract(models.Model):
                 self.promo_code.discount * 100 / Decimal(self.get_cartobject().total_price_wo_discount_wo_vat_reduction())
             )
 
+
 class ItemManager(models.Manager):
     def get(self, *args, **kwargs):
         if 'product' in kwargs:
@@ -119,6 +121,9 @@ class ItemAbstract(models.Model):
         else:
             single_price = Currency.get_price(self.unit_price)
         return single_price
+
+    def get_vat(self, in_default_currency=False):
+        return round_decimal(self.single_price(in_default_currency) / (1 + qshop_settings.VAT_PERCENTS))
 
     def total_price(self, in_default_currency=False):
         if qshop_settings.ENABLE_PROMO_CODES:

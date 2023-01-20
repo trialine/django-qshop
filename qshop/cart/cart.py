@@ -8,6 +8,7 @@ from ..models import Currency
 from qshop import qshop_settings
 
 from sitemenu import import_item
+from helpers.math import round_decimal
 count_delivery_price = import_item(qshop_settings.CART_DELIVERY_FUNCTION)
 
 CART_ID = '%s-cart' % settings.ROOT_URLCONF
@@ -73,8 +74,14 @@ class CartAbstract:
     def total_price_wo_discount_wo_vat_reduction(self, in_default_currency=False):
         total_price = 0
         for item in self.get_products():
-            total_price += item.total_price_wo_discount(in_default_currency=in_default_currency)
-        return float(total_price)
+            total_price += round_decimal(item.total_price_wo_discount(in_default_currency=in_default_currency))
+        return total_price
+
+    def total_vat(self, in_default_currency=False):
+        total_vat = 0
+        for item in self.get_products():
+            total_vat += round_decimal(item.get_vat())
+        return total_vat
 
     def total_price_with_discount_wo_vat_reduction(self, in_default_currency=False):
         total_price = self.total_price_wo_discount_wo_vat_reduction(in_default_currency)
@@ -84,7 +91,7 @@ class CartAbstract:
                 total_price = Decimal(total_price) - self.get_discount()
             else:
                 total_price = (100 - self.get_discount()) * Decimal(total_price / 100.0)
-        return total_price
+        return round_decimal(total_price)
 
     def total_fprice_wo_discount(self):
         return Currency.get_fprice(self.total_price_wo_discount_wo_vat_reduction(), format_only=True)
@@ -93,13 +100,15 @@ class CartAbstract:
         return Currency.get_default_currency()
 
     def total_price(self, in_default_currency=False):
-        total_price = self.total_price_with_discount_wo_vat_reduction(in_default_currency)
-
-        return Decimal(total_price - self.vat_amount(in_default_currency))
+        return self.total_price_with_discount_wo_vat_reduction(in_default_currency) - self.vat_amount(in_default_currency)
 
     def vat_amount(self, in_default_currency=False):
+        """
+        Method using at reduction in self.total_price()
+        To get VAT amount use self.total_vat()
+        """
         if self.has_vat_reduction():
-            return self.total_price_with_discount_wo_vat_reduction(in_default_currency) * self.get_vat_reduction() / 121
+            return self.total_vat(in_default_currency)
         return 0
 
     def total_fprice(self):
