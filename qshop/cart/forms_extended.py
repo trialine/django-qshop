@@ -66,7 +66,7 @@ if ENABLE_QSHOP_DELIVERY:
             self.cart = kwargs.pop('cart')
             # need to annulate, because delivery price and vat reduction are saved in model Cart
             self.cart.set_delivery_price(0)
-            self.cart.set_vat_reduction(0)
+            self.cart.reset_vat_reduction()
 
             super().__init__(*args, **kwargs)
             self.fields['delivery_type'].empty_label = None
@@ -80,14 +80,21 @@ if ENABLE_QSHOP_DELIVERY:
             if self.instance.pk:
                 self.restore_field_calculated_values()
 
-
         def restore_field_calculated_values(self):
             self.process_delivery_data(self.instance.delivery_type)
-            self.cart.set_delivery_price(self.instance.delivery_type.get_delivery_price(self.instance.delivery_country, self.cart))
-            if self.instance.country:
-                self.cart.set_vat_reduction(self.instance.country.get_vat_reduction(self.instance.vat_reg_number, self.instance.person_type))
-            self.fields['delivery_type'].queryset = self.get_delivery_types(self.instance.delivery_country)
+            self.cart.set_delivery_price(
+                self.instance.delivery_type.get_delivery_price(self.instance.delivery_country, self.cart)
+            )
 
+            # VAT discount calculations OSS and etc
+            if self.instance.delivery_country or self.instance.country:
+                self.cart.set_vat_reduction(
+                    person_type=self.instance.person_type,
+                    vat_reg_number=self.instance.vat_reg_number,
+                    legal_country=self.instance.country,
+                    delivery_country=self.instance.delivery_country
+                )
+            self.fields['delivery_type'].queryset = self.get_delivery_types(self.instance.delivery_country)
 
         def refresh_instance_data(self):
             self.instance.cart = self.cart.cart
@@ -96,14 +103,13 @@ if ENABLE_QSHOP_DELIVERY:
             self.instance.delivery_price = self.cart.delivery_price()
             self.instance.cart_vat_amount = self.cart.vat_amount()
 
-
         def clean(self):
             data = super().clean()
             self.person_type = data.get('person_type')
             self.delivery_country = data.get('delivery_country')
             self.delivery_type = data.get('delivery_type', None)
             self.is_delivery = data.get('is_delivery')
-            self.vat_nr = data.get('vat_reg_number', None)
+            self.vat_reg_number = data.get('vat_reg_number', None)
             self.country = data.get('country')
 
             self.fields['delivery_type'].queryset = self.get_delivery_types(self.delivery_country)
@@ -111,15 +117,17 @@ if ENABLE_QSHOP_DELIVERY:
             if self.delivery_type:
                 self.cart.set_delivery_price(self.delivery_type.get_delivery_price(self.delivery_country, self.cart))
 
-            if self.country:
-                self.cart.set_vat_reduction(self.country.get_vat_reduction(self.vat_nr, self.person_type))
+            self.cart.set_vat_reduction(
+                person_type=self.person_type,
+                vat_reg_number=self.vat_reg_number,
+                legal_country=self.country,
+                delivery_country=self.delivery_country
+            )
 
             self.refresh_instance_data()
             self.validate_legal_fields(data)
             self.clean_delivery_fields(data)
-
             return data
-
 
         def get_delivery_types(self, delivery_country):
             included_dtypes_ids = []

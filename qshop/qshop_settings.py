@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.conf import settings
 
 _ = lambda x: x
@@ -45,6 +47,8 @@ CART_TABLE_IMAGE_ADD = getattr(settings, 'QSHOP_CART_TABLE_IMAGE_ADD', None)
 ENABLE_QSHOP_DELIVERY = getattr(settings, 'QSHOP_ENABLE_QSHOP_DELIVERY', False)
 DELIVERY_REQUIRED = getattr(settings, 'QSHOP_DELIVERY_REQUIRED', False)
 VAT_PERCENTS = getattr(settings, 'QSHOP_VAT_PERCENTS', 21)
+MERCHANT_VAT = Decimal(str(getattr(settings, 'QSHOP_MERCHANT_VAT', 0.21)))
+MERCHANT_SHOP_COUNTRY_CODE = getattr(settings, 'MERCHANT_SHOP_COUNTRY_CODE', 'LV')
 DELIVERY_COUNTRY_CLASS = getattr(settings, 'QSHOP_DELIVERY_COUNTRY_CLASS', None)
 DELIVERY_TYPE_CLASS = getattr(settings, 'QSHOP_DELIVERY_TYPE_CLASS', None)
 DELIVERY_CALCULATION_CLASS = getattr(settings, 'QSHOP_DELIVERY_CALCULATION_CLASS', None)

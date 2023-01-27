@@ -5,10 +5,11 @@ from django.template.loader import render_to_string
 
 from . import models
 from ..models import Currency
-from qshop import qshop_settings
 
+from qshop import qshop_settings
 from sitemenu import import_item
 from helpers.math import round_decimal
+
 count_delivery_price = import_item(qshop_settings.CART_DELIVERY_FUNCTION)
 
 CART_ID = '%s-cart' % settings.ROOT_URLCONF
@@ -80,7 +81,7 @@ class CartAbstract:
     def total_vat(self, in_default_currency=False):
         total_vat = 0
         for item in self.get_products():
-            total_vat += round_decimal(item.get_vat())
+            total_vat += round_decimal(item.get_vat(in_default_currency))
         return total_vat
 
     def total_price_with_discount_wo_vat_reduction(self, in_default_currency=False):
@@ -100,7 +101,14 @@ class CartAbstract:
         return Currency.get_default_currency()
 
     def total_price(self, in_default_currency=False):
-        return self.total_price_with_discount_wo_vat_reduction(in_default_currency) - self.vat_amount(in_default_currency)
+        if self.cart.vat_reduction:
+            amount = round_decimal(
+                self.total_price_with_discount_wo_vat_reduction(in_default_currency) / (1 + self.cart.vat_reduction)
+            )
+            if self.cart.new_vat:
+                amount = amount * (1 + self.cart.new_vat)
+            return amount
+        return self.total_price_with_discount_wo_vat_reduction(in_default_currency)
 
     def vat_amount(self, in_default_currency=False):
         """
@@ -115,7 +123,7 @@ class CartAbstract:
         return Currency.get_fprice(self.total_price(), format_only=True)
 
     def total_price_with_delivery(self):
-        return self.total_price() + Decimal(self.delivery_price())
+        return self.total_price() + self.delivery_price()
 
     def total_fprice_with_delivery(self):
         return Currency.get_fprice(self.total_price_with_delivery(), format_only=True)
@@ -162,18 +170,28 @@ class CartAbstract:
         # self.clear_cache()
         self.cart.save()
 
-    def set_vat_reduction(self, percents):
-        self.cart.vat_reduction = percents
-        # self.clear_cache()
+    # ADD comments
+    def set_vat_reduction(self, person_type=None, vat_reg_number=None, legal_country=None, delivery_country=None):
+        """
+        """
+        self.cart.vat_reduction, self.cart.new_vat = models.DeliveryCountry.get_vat_reduction_oss(
+            person_type=person_type,
+            vat_reg_number=vat_reg_number,
+            legal_country=legal_country,
+            delivery_country=delivery_country
+        )
+        self.cart.save()
+
+    def reset_vat_reduction(self):
+        self.cart.vat_reduction = 0
+        self.cart.vat = 0
         self.cart.save()
 
     def get_vat_reduction(self):
         return self.cart.vat_reduction
 
     def has_vat_reduction(self):
-        if self.get_vat_reduction() > 0:
-            return True
-        return False
+        return self.cart.vat_reduction > 0
 
     def total_weight(self):
         try:

@@ -30,7 +30,15 @@ class CartAbstract(models.Model):
     date_modified = models.DateTimeField(_('modification date'), auto_now=True)
     checked_out = models.BooleanField(default=False, verbose_name=_('checked out'))
     discount = models.DecimalField(_('discount'), max_digits=9, decimal_places=2, default=0)
-    vat_reduction = models.PositiveSmallIntegerField(_('vat reduction'), default=0)
+    vat_reduction = models.PositiveSmallIntegerField(
+        _('vat reduction'), default=0, help_text='What percent of price we have to reduct'
+    )
+    new_vat = models.PositiveSmallIntegerField(
+        _('new VAT (OSS/IOSS mode)'),
+        default=0,
+        help_text='OSS/IOSS: If not 0 therefore we have to reduct vat_reduction percent and apply new vat percent to price'
+    )
+
     if qshop_settings.ENABLE_PROMO_CODES:
         promo_code = models.ForeignKey(PromoCode, on_delete=models.SET_NULL, null=True, blank=True, related_name="promocode")
 
@@ -406,24 +414,42 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
 
     class DeliveryCountryAbstract(models.Model):
         _translation_fields = ['title', 'vat_behavior_reason']
+
         VAT_NOTHING_TO_DO = 1
         VAT_MINUS_LEGAL = 2
         VAT_MINUS_LEGAL_VAT = 3
+        EU_ZONE_APPLY_OSS = 4
+        OUT_OF_EU = 5
 
         VAT_BEHAVIOR_CHOICES = (
             (VAT_NOTHING_TO_DO, _('Nothing to do')),
             (VAT_MINUS_LEGAL, _('Take tax off a cart price')),
             (VAT_MINUS_LEGAL_VAT, _('Take tax off a cart price if legal entity with VAT')),
+            (EU_ZONE_APPLY_OSS, _('Take VAT off and apply new VAT due EU zone and OSS')),
+            (OUT_OF_EU, _('Take tax off due out of EU zone'))
         )
         title = models.CharField(_('Country name'), max_length=100)
         vat_behavior = models.SmallIntegerField(choices=VAT_BEHAVIOR_CHOICES)
-        vat_behavior_reason = models.CharField(_('VAT behavior reason, if reduce'), max_length=200, blank=True, null=True)
-        can_draw_up_an_invoice = models.BooleanField(_('Can draw up an invoice?'), default=True, help_text=_('If legal entity'))
-        iso2_code = models.CharField(_('Country 2 symbols ISO code'), max_length=2)
+        vat_behavior_reason = models.CharField(
+            _('VAT behavior reason, if reduce'), max_length=200, blank=True, null=True
+        )
+        vat = models.DecimalField(
+            _("VAT"),
+            max_digits=5,
+            decimal_places=2,
+            default=0.2,
+            help_text="Country VAT amount in decimal format ex. 0.2 is 20% VAT",
+        )
+        can_draw_up_an_invoice = models.BooleanField(
+            _('Can draw up an invoice?'), default=True, help_text=_('If legal entity')
+        )
+        iso2_code = models.CharField(
+            _("Country 2 symbols ISO code"), max_length=2, unique=True
+        )
         sort_order = models.SmallIntegerField(_('Position'), default=0)
 
         objects = models.Manager()  # The default manager.
-        can_invoicing = InvoiceManager() # The Dahl-specific manager.
+        can_invoicing = InvoiceManager()  # The Dahl-specific manager.
 
         class Meta:
             abstract = True
@@ -440,14 +466,145 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
                 return qshop_settings.VAT_PERCENTS
             return 0
 
+        @classmethod
+        def get_vat_reduction_to_legal_with_delivery(cls, delivery_country, vat_reg_number, legal_country):
+            """
+            Case:
+
+            delivery: yes
+            person: legal
+            vat: any
+
+            """
+            # sorry for local businnes no any VAT reduction
+            if legal_country.iso2_code == qshop_settings.MERCHANT_SHOP_COUNTRY_CODE:
+                return 0, 0
+            # firm from EU
+            elif legal_country.vat_behavior == cls.EU_ZONE_APPLY_OSS:
+                if vat_reg_number:
+                    return qshop_settings.MERCHANT_VAT, 0
+
+                # goes with delivery country VAT in EU
+                if delivery_country.vat_behavior == cls.EU_ZONE_APPLY_OSS:
+                    return qshop_settings.MERCHANT_VAT, delivery_country.vat
+
+                # goes with merchant VAT in out of EU zone
+                return qshop_settings.MERCHANT_VAT, qshop_settings.MERCHANT_VAT
+            # firm out of EU
+            elif legal_country.vat_behavior == cls.OUT_OF_EU:
+                # delivery to merchant shop country
+                if delivery_country.iso2_code == qshop_settings.MERCHANT_SHOP_COUNTRY_CODE:
+                    return 0, 0
+                # delivery elsewere
+                return qshop_settings.MERCHANT_VAT, 0
+
 
         @classmethod
-        def get_vat_reduction_static(cls, country_pk=None, vat_nr="", person_type=None):
-            if country_pk:
-                country = cls.objects.filter(pk=country_pk).first()
-                if country:
-                    return country.get_vat_reduction(vat_nr, person_type)
+        def get_vat_reduction_to_legal_not_vat_payer_with_delivery(cls, delivery_country, legal_country):
+            """
+            Case:
 
+            delivery: yes
+            person: legal
+            vat: no
+            """
+            # sorry for local businnes no any VAT reduction
+            if legal_country.iso2_code == qshop_settings.MERCHANT_SHOP_COUNTRY_CODE:
+                return 0, 0
+            # firm from EU NOT VAT (if not the same country as merchant shop)
+            elif legal_country.vat_behavior == cls.EU_ZONE_APPLY_OSS:
+                # goes with delivery country VAT in EU
+                if delivery_country.vat_behavior == cls.EU_ZONE_APPLY_OSS:
+                    return qshop_settings.MERCHANT_VAT, delivery_country.vat
+                # goes with merchant VAT in out of EU zone
+                return qshop_settings.MERCHANT_VAT, qshop_settings.MERCHANT_VAT
+            # VAT firm out of EU
+            elif legal_country.vat_behavior == cls.OUT_OF_EU:
+                # delivery to merchant shop country
+                if delivery_country.iso2_code == qshop_settings.MERCHANT_SHOP_COUNTRY_CODE:
+                    return 0, 0
+                # delivery elsewere
+                return qshop_settings.MERCHANT_VAT, 0
+
+        @classmethod
+        def get_vat_reduction_to_physical_with_delivery(cls, delivery_country):
+            """
+            Case:
+
+            delivery: yes
+            person: physical
+            vat: no
+            """
+            # nothing to reduct if delivery in the shop country
+            if delivery_country.iso2_code == qshop_settings.MERCHANT_SHOP_COUNTRY_CODE:
+                return 0, 0
+            # OSS have to apply delivery country VAT
+            elif delivery_country.vat_behavior == cls.EU_ZONE_APPLY_OSS:
+                return qshop_settings.MERCHANT_VAT, delivery_country.vat
+            # if delivery out of EU zone
+            elif delivery_country.vat_behavior == cls.OUT_OF_EU:
+                return qshop_settings.MERCHANT_VAT, 0
+
+        @classmethod
+        def get_vat_reduction_wo_delivery(cls, person_type, vat_reg_number, legal_country):
+            """
+            Case:
+
+            delivery: no
+            person: any
+            vat: any
+
+            Physical person always pay VAT if there is no delivery
+            """
+            if (person_type == Order.LEGAL and
+                    vat_reg_number and legal_country and
+                    legal_country.vat_behavior == cls.EU_ZONE_APPLY_OSS and
+                    legal_country.iso2_code != qshop_settings.MERCHANT_SHOP_COUNTRY_CODE):
+                return qshop_settings.MERCHANT_VAT, 0
+            return 0, 0
+
+        @classmethod
+        def get_vat_reduction_oss(cls, delivery_country=None, vat_reg_number=None,
+                                  person_type=None, legal_country=None):
+            """
+            How much we have to reduct from item price and apply
+            new VAT (if needed) to delivery country or without delivery
+
+            :param vat_reg_number: firm VAT
+            :param person_type: Order.LEGAL or Order.INDIVIDUAL
+            :param legal_country: in case when LEGAL person country of origin (class DeliveryCountry)
+
+            :return: return tupple with (VAT % in decimal to reduct, new VAT % to apply in decimal)
+
+            Example:
+
+            return 0.21, 0.23 => we have to reduct 21% from price and add 23% to price to get final price to client
+            return 0.21, 0 => we have to reduct 21% from price and add nothing to price to get final price to client
+            """
+            if person_type:
+                person_type = int(person_type)
+            else:
+                person_type = Order.INDIVIDUAL
+
+            if not delivery_country:
+                return cls.get_vat_reduction_wo_delivery(person_type, vat_reg_number, legal_country)
+
+            # Calculation with delivery
+            if person_type == Order.INDIVIDUAL:
+                return cls.get_vat_reduction_to_physical_with_delivery(delivery_country)
+            # juridical person with defined country of origin
+            elif legal_country:
+                return cls.get_vat_reduction_to_legal_with_delivery(delivery_country, vat_reg_number, legal_country)
+
+            # by default no any reduction
+            return 0, 0
+
+        @classmethod
+        def get_vat_reduction_by_code(cls, iso2_code=None, vat_reg_number=None, person_type=None):
+            if iso2_code:
+                country = cls.objects.filter(iso2_code=iso2_code).first()
+                if country:
+                    return country.get_vat_reduction(vat_reg_number, person_type)
             return 0
 
 
@@ -467,7 +624,6 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
         delivery_country = models.ManyToManyField('DeliveryCountry')
         estimated_time = models.CharField(_('Estimated time'), max_length=100)
 
-
         delivery_calculation = models.SmallIntegerField(
             _('Delivery calculation'),
             choices=PRICING_MODEL_CHOICES,
@@ -478,6 +634,9 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
             abstract = True
             verbose_name = _('delivery type')
             verbose_name_plural = _('delivery types')
+
+        def __str__(self):
+            return str(self.title)
 
         @property
         def calculation_html(self):
@@ -511,7 +670,6 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
             else:
                 return self.deliverycalculation_set.filter(value__gte=cart.total_price_wo_discount_wo_vat_reduction()).first()
 
-
         def get_delivery_price(self, country, cart):
             if self.check_country(country):
                 dcalc = self.get_delivery_calculation(cart)
@@ -529,10 +687,6 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
             dtype = cls.objects.get(pk=delivery_type_pk)
             return dtype.get_delivery_price(country_pk, cart)
 
-        def __str__(self):
-            return str(self.title)
-
-
         def sync_dpd_parcel(self, *args, **options):
             paracel_machines = json.loads(requests.get("http://ftp.dpdbaltics.com/PickupParcelShopData.json").content)
             if paracel_machines:
@@ -541,7 +695,7 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
                 for paracel_machine in paracel_machines:
                     if paracel_machine['zipCode'] and paracel_machine['countryCode'] in delivery_countries:
                         self.pickuppoint_set.update_or_create(
-                            zip_code = paracel_machine['zipCode'],
+                            zip_code=paracel_machine['zipCode'],
                             defaults={
                                 'title': paracel_machine['companyName'],
                                 'address': paracel_machine['street'],
@@ -550,7 +704,6 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
                                 'is_active': True,
                             }
                         )
-
 
         def sync_omniva_parcel(self, *args, **options):
             paracel_machines = json.loads(requests.get("https://www.omniva.ee/locations.json").content)
@@ -570,7 +723,6 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
                                 'is_active': True,
                             }
                         )
-
 
         def get_omniva_address(self, paracel_machine):
             if paracel_machine['A2_NAME'] == "NULL":
