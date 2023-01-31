@@ -130,8 +130,28 @@ class ItemAbstract(models.Model):
             single_price = Currency.get_price(self.unit_price)
         return single_price
 
+    def get_vat_percent(self):
+        """
+        Return VAT in decimal like 0.2
+        method to have ability to overwrite it logic for example with SITE_ID
+        """
+        return qshop_settings.MERCHANT_VAT
+
     def get_vat(self, in_default_currency=False):
-        return round_decimal(self.single_price(in_default_currency) / (1 + qshop_settings.VAT_PERCENTS))
+        """
+        VAT = single product price with VAT - price without VAT
+        """
+        return (
+            self.single_price_with_discount(in_default_currency) - self.get_price_without_vat(in_default_currency)
+        ) * self.quantity
+
+    def get_price_without_vat(self, in_default_currency=False):
+        return round_decimal(
+            self.single_price_with_discount(in_default_currency) / (1 + self.get_vat_percent())
+        )
+
+    def get_vat_with_new_rate(self, new_vat, in_default_currency=False):
+        return self.get_price_without_vat(in_default_currency) * new_vat * self.quantity
 
     def total_price(self, in_default_currency=False):
         if qshop_settings.ENABLE_PROMO_CODES:
@@ -144,31 +164,29 @@ class ItemAbstract(models.Model):
     def total_fprice_wo_discount(self):
         return Currency.get_fprice(self.total_price_wo_discount(), format_only=True)
 
-    if qshop_settings.ENABLE_PROMO_CODES:
+    def discount_percent(self, in_default_currency=False):
+        discount_percent = 0
+        if self.cart.can_use_promocode:
+            if self.cart.promo_code.is_percent_discount:
+                discount_percent = self.cart.promo_code.discount
+            else:
+                discount_percent = self.get_discount_percent_from_fixed_discount(in_default_currency)
+        return discount_percent
 
-        def discount_percent(self, in_default_currency=False):
-            discount_percent = 0
-            if self.cart.can_use_promocode:
-                if self.cart.promo_code.is_percent_discount:
-                    discount_percent = self.cart.promo_code.discount
-                else:
-                    discount_percent = self.get_discount_percent_from_fixed_discount(in_default_currency)
-            return discount_percent
+    def get_discount_percent_from_fixed_discount(self, in_default_currency=False):
+        return self.cart.discount_percent_from_fixed_discount
 
-        def get_discount_percent_from_fixed_discount(self, in_default_currency=False):
-            return self.cart.discount_percent_from_fixed_discount
+    def total_price_with_discount(self, in_default_currency=False):
+        return self.quantity * self.single_price_with_discount(in_default_currency)
 
-        def total_price_with_discount(self, in_default_currency=False):
-            return self.quantity * self.single_price_with_discount(in_default_currency)
+    def single_price_with_discount(self, in_default_currency=False):
+        return Decimal(self.single_price(in_default_currency)) - self.single_price_discount(in_default_currency)
 
-        def single_price_with_discount(self, in_default_currency=False):
-            return Decimal(self.single_price(in_default_currency)) - self.single_price_discount(in_default_currency)
+    def total_discount(self, in_default_currency=False):
+        return Decimal(self.quantity * self.single_price_discount(in_default_currency)).quantize(Decimal('0.01'))
 
-        def total_discount(self, in_default_currency=False):
-            return Decimal(self.quantity * self.single_price_discount(in_default_currency)).quantize(Decimal('0.01'))
-
-        def single_price_discount(self, in_default_currency=False):
-            return Decimal(self.single_price(in_default_currency)) * Decimal(0 + (self.discount_percent(in_default_currency) / 100))
+    def single_price_discount(self, in_default_currency=False):
+        return Decimal(self.single_price(in_default_currency)) * Decimal(0 + (self.discount_percent(in_default_currency) / 100))
 
     def total_fprice(self):
         return Currency.get_fprice(self.total_price(), format_only=True)
@@ -463,7 +481,7 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
         def get_vat_reduction(self, vat_nr, person_type):
             if person_type and int(person_type) == Order.LEGAL and \
                 (self.vat_behavior == self.VAT_MINUS_LEGAL_VAT and vat_nr or self.vat_behavior == self.VAT_MINUS_LEGAL):
-                return qshop_settings.VAT_PERCENTS
+                return self.get_vat_percent()
             return 0
 
         @classmethod

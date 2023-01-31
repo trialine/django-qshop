@@ -79,10 +79,19 @@ class CartAbstract:
         return total_price
 
     def total_vat(self, in_default_currency=False):
+        if self.has_vat_reduction() and self.cart.new_vat == 0:
+            return 0
+
         total_vat = 0
         for item in self.get_products():
-            total_vat += round_decimal(item.get_vat(in_default_currency))
+            if self.cart.new_vat:
+                total_vat += item.get_vat_with_new_rate(self.cart.new_vat, in_default_currency)
+            else:
+                total_vat += item.get_vat(in_default_currency)
         return total_vat
+
+    def vat_amount(self):
+        return self.total_vat()
 
     def total_price_with_discount_wo_vat_reduction(self, in_default_currency=False):
         total_price = self.total_price_wo_discount_wo_vat_reduction(in_default_currency)
@@ -100,6 +109,14 @@ class CartAbstract:
     def get_currency(self):
         return Currency.get_default_currency()
 
+    def get_subtotal(self, in_default_currency=False):
+        """
+        Cart total without merchant VAT
+        """
+        return round_decimal(
+            self.total_price_with_discount_wo_vat_reduction(in_default_currency) / (1 + qshop_settings.MERCHANT_VAT)
+        )
+
     def total_price(self, in_default_currency=False):
         if self.cart.vat_reduction:
             amount = round_decimal(
@@ -109,15 +126,6 @@ class CartAbstract:
                 amount = amount * (1 + self.cart.new_vat)
             return amount
         return self.total_price_with_discount_wo_vat_reduction(in_default_currency)
-
-    def vat_amount(self, in_default_currency=False):
-        """
-        Method using at reduction in self.total_price()
-        To get VAT amount use self.total_vat()
-        """
-        if self.has_vat_reduction():
-            return self.total_vat(in_default_currency)
-        return 0
 
     def total_fprice(self):
         return Currency.get_fprice(self.total_price(), format_only=True)
@@ -188,6 +196,8 @@ class CartAbstract:
         self.cart.save()
 
     def get_vat_reduction(self):
+        if self.has_vat_reduction():
+            return self.cart.new_vat
         return self.cart.vat_reduction
 
     def has_vat_reduction(self):
