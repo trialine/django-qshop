@@ -126,10 +126,10 @@ class OrderDetailView(CreateView):
         cart = Cart(self.request)
         return cart
 
-    def get(self, request, *args, **kwargs):
+    def dispatch(self, request, *args, **kwargs):
         if self.cart.total_products() < 1:
             return REDIRECT_CLASS(reverse('cart'))
-        return super().get(request, *args, **kwargs)
+        return super().dispatch(request, *args, **kwargs)
 
     def get_form_kwargs(self):
         kwargs = super(OrderDetailView, self).get_form_kwargs()
