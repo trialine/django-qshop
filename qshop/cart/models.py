@@ -484,6 +484,7 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
                 return self.get_vat_percent()
             return 0
 
+        # TODO: move to small chunk methods
         @classmethod
         def get_vat_reduction_to_legal_with_delivery(cls, delivery_country, vat_reg_number, legal_country):
             """
@@ -494,11 +495,13 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
             vat: any
 
             """
+            shop_country = cls.objects.get(iso2_code=qshop_settings.MERCHANT_SHOP_COUNTRY_CODE)
+
             # sorry for local businnes no any VAT reduction
             if legal_country.iso2_code == qshop_settings.MERCHANT_SHOP_COUNTRY_CODE:
                 return 0, 0
-            # firm from EU
-            elif legal_country.vat_behavior == cls.EU_ZONE_APPLY_OSS:
+            # merchant from EU and firm from EU
+            elif shop_country.vat_behavior == cls.EU_ZONE_APPLY_OSS and legal_country.vat_behavior == cls.EU_ZONE_APPLY_OSS:
                 if vat_reg_number:
                     return qshop_settings.MERCHANT_VAT, 0
 
@@ -508,41 +511,17 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
 
                 # goes with merchant VAT in out of EU zone
                 return qshop_settings.MERCHANT_VAT, qshop_settings.MERCHANT_VAT
-            # firm out of EU
-            elif legal_country.vat_behavior == cls.OUT_OF_EU:
+            # merchant from EU and firm out of EU
+            elif shop_country.vat_behavior == cls.EU_ZONE_APPLY_OSS and legal_country.vat_behavior == cls.OUT_OF_EU:
                 # delivery to merchant shop country
                 if delivery_country.iso2_code == qshop_settings.MERCHANT_SHOP_COUNTRY_CODE:
                     return 0, 0
                 # delivery elsewere
                 return qshop_settings.MERCHANT_VAT, 0
-
-
-        @classmethod
-        def get_vat_reduction_to_legal_not_vat_payer_with_delivery(cls, delivery_country, legal_country):
-            """
-            Case:
-
-            delivery: yes
-            person: legal
-            vat: no
-            """
-            # sorry for local businnes no any VAT reduction
-            if legal_country.iso2_code == qshop_settings.MERCHANT_SHOP_COUNTRY_CODE:
-                return 0, 0
-            # firm from EU NOT VAT (if not the same country as merchant shop)
-            elif legal_country.vat_behavior == cls.EU_ZONE_APPLY_OSS:
-                # goes with delivery country VAT in EU
-                if delivery_country.vat_behavior == cls.EU_ZONE_APPLY_OSS:
-                    return qshop_settings.MERCHANT_VAT, delivery_country.vat
-                # goes with merchant VAT in out of EU zone
-                return qshop_settings.MERCHANT_VAT, qshop_settings.MERCHANT_VAT
-            # VAT firm out of EU
-            elif legal_country.vat_behavior == cls.OUT_OF_EU:
-                # delivery to merchant shop country
-                if delivery_country.iso2_code == qshop_settings.MERCHANT_SHOP_COUNTRY_CODE:
-                    return 0, 0
-                # delivery elsewere
+            # merchant outside EU
+            elif shop_country.vat_behavior == cls.OUT_OF_EU:
                 return qshop_settings.MERCHANT_VAT, 0
+
 
         @classmethod
         def get_vat_reduction_to_physical_with_delivery(cls, delivery_country):
@@ -553,14 +532,17 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
             person: physical
             vat: no
             """
+            shop_country = cls.objects.get(iso2_code=qshop_settings.MERCHANT_SHOP_COUNTRY_CODE)
+
             # nothing to reduct if delivery in the shop country
             if delivery_country.iso2_code == qshop_settings.MERCHANT_SHOP_COUNTRY_CODE:
                 return 0, 0
-            # OSS have to apply delivery country VAT
-            elif delivery_country.vat_behavior == cls.EU_ZONE_APPLY_OSS:
+            # OSS have to apply delivery country VAT if Merchant from EU zone
+            elif (shop_country.vat_behavior == cls.EU_ZONE_APPLY_OSS and
+                    delivery_country.vat_behavior == cls.EU_ZONE_APPLY_OSS):
                 return qshop_settings.MERCHANT_VAT, delivery_country.vat
-            # if delivery out of EU zone
-            elif delivery_country.vat_behavior == cls.OUT_OF_EU:
+            # if delivery out of EU zone or abroad
+            else:
                 return qshop_settings.MERCHANT_VAT, 0
 
         @classmethod
@@ -581,6 +563,10 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
                 return qshop_settings.MERCHANT_VAT, 0
             return 0, 0
 
+        # TODO: move all calls to class instance calls
+        # merchant_country = cls.objects.get(iso2_code=qshop_settings.MERCHANT_SHOP_COUNTRY_CODE)
+        # then call using merchant_country instance
+        # merchant_country.get_vat_reduction_wo_delivery()
         @classmethod
         def get_vat_reduction_oss(cls, delivery_country=None, vat_reg_number=None,
                                   person_type=None, legal_country=None):

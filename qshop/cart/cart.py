@@ -178,10 +178,7 @@ class CartAbstract:
         # self.clear_cache()
         self.cart.save()
 
-    # ADD comments
     def set_vat_reduction(self, person_type=None, vat_reg_number=None, legal_country=None, delivery_country=None):
-        """
-        """
         self.cart.vat_reduction, self.cart.new_vat = models.DeliveryCountry.get_vat_reduction_oss(
             person_type=person_type,
             vat_reg_number=vat_reg_number,
