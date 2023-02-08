@@ -12,7 +12,7 @@ from qshop.mails import sendMail
 from qshop import qshop_settings
 from sitemenu import import_item
 
-from helpers.math import round_decimal
+from helpers.math import round_decimal, round_up_to_5_or_10
 from ..models import Currency, Product, ProductVariation
 
 PAYMENT_CLASSES = {}
@@ -151,7 +151,11 @@ class ItemAbstract(models.Model):
         )
 
     def get_vat_with_new_rate(self, new_vat, in_default_currency=False):
-        return self.get_price_without_vat(in_default_currency) * new_vat * self.quantity
+        new_rounded_price = round_up_to_5_or_10(
+            self.get_price_without_vat(in_default_currency) * (Decimal('1') + new_vat)
+        )
+        # VAT of new_rounded_price = new_rounded_price - new_rounded_price without VAT
+        return (new_rounded_price - round_decimal(new_rounded_price / (Decimal('1') + new_vat))) * self.quantity
 
     def total_price(self, in_default_currency=False):
         if qshop_settings.ENABLE_PROMO_CODES:
@@ -189,7 +193,16 @@ class ItemAbstract(models.Model):
         return Decimal(self.single_price(in_default_currency)) * Decimal(0 + (self.discount_percent(in_default_currency) / 100))
 
     def total_fprice(self):
-        return Currency.get_fprice(self.total_price(), format_only=True)
+        total = self.total_price()
+
+        # #968 show in cart rounding price with up to 5 or 10
+        if self.cart.vat_reduction:
+            total = (round_up_to_5_or_10(
+                round_decimal(
+                    Decimal(str(total)) / (Decimal('1') + self.cart.vat_reduction)
+                ) * (Decimal('1') + self.cart.new_vat)
+            ))
+        return Currency.get_fprice(total, format_only=True)
 
     def get_product(self):
         self._real_product.selected_variation = self._real_product_variation

@@ -8,7 +8,7 @@ from ..models import Currency
 
 from qshop import qshop_settings
 from sitemenu import import_item
-from helpers.math import round_decimal
+from helpers.math import round_decimal, round_up_to_5_or_10
 
 count_delivery_price = import_item(qshop_settings.CART_DELIVERY_FUNCTION)
 
@@ -113,9 +113,25 @@ class CartAbstract:
         """
         Cart total without merchant VAT
         """
-        return round_decimal(
+        subtotal = round_decimal(
             self.total_price_with_discount_wo_vat_reduction(in_default_currency) / (1 + qshop_settings.MERCHANT_VAT)
         )
+        if self.cart.vat_reduction:
+            return round_up_to_5_or_10(subtotal)
+        return subtotal
+
+    def total_price_wo_vat(self, in_default_currency=False):
+        """
+        Price without delivery and without VAT
+        """
+        total_price_wo_vat = round_decimal(
+            self.total_price_with_discount_wo_vat_reduction(in_default_currency) / (1 + qshop_settings.MERCHANT_VAT)
+        )
+        if self.cart.vat_reduction:
+            total_price_wo_vat = round_decimal(
+                round_up_to_5_or_10(total_price_wo_vat * (Decimal('1') + self.cart.new_vat)) / (Decimal('1') + self.cart.new_vat)
+            )
+        return total_price_wo_vat
 
     def total_price(self, in_default_currency=False):
         if self.cart.vat_reduction:
@@ -124,7 +140,7 @@ class CartAbstract:
             )
             if self.cart.new_vat:
                 amount = amount * (1 + self.cart.new_vat)
-            return amount
+            return round_up_to_5_or_10(amount)
         return self.total_price_with_discount_wo_vat_reduction(in_default_currency)
 
     def total_fprice(self):
