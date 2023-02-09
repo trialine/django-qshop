@@ -150,10 +150,13 @@ class ItemAbstract(models.Model):
             self.single_price_with_discount(in_default_currency) / (1 + self.get_vat_percent())
         )
 
-    def get_vat_with_new_rate(self, new_vat, in_default_currency=False):
-        new_rounded_price = round_up_to_5_or_10(
+    def get_price_with_new_vat_rate(self, new_vat, in_default_currency=False):
+        return round_up_to_5_or_10(
             self.get_price_without_vat(in_default_currency) * (Decimal('1') + new_vat)
         )
+
+    def get_vat_with_new_rate(self, new_vat, in_default_currency=False):
+        new_rounded_price = self.get_price_with_new_vat_rate(new_vat, in_default_currency)
         # VAT of new_rounded_price = new_rounded_price - new_rounded_price without VAT
         return (new_rounded_price - round_decimal(new_rounded_price / (Decimal('1') + new_vat))) * self.quantity
 
