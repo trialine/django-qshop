@@ -2,12 +2,12 @@
 from setuptools import setup
 
 setup(name='django-qshop',
-      version='1.8.0',
+      version='1.8.1',
       description='E-commerce for django. Requires django-sitemenu. Beta version.',
       long_description='E-commerce for django. Requires django-sitemenu. Beta version.',
       author='Vital Belikov',
       author_email='vital@qwe.lv',
-      packages=['qshop', 'qshop.templatetags', 'qshop.cart', 'qshop.management',
+      packages=['qshop.helpers', 'qshop', 'qshop.templatetags', 'qshop.cart', 'qshop.management',
                 'qshop.management.commands', 'qshop.payment_vendors', 'qshop.payment_vendors.banktransfer',
                 'qshop.payment_vendors.paypal', 'qshop.payment_vendors.webmoney'],
       url='https://github.com/Brick85/django-qshop',
