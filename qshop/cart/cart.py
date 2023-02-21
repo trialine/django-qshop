@@ -33,7 +33,7 @@ class ItemTooMany(Exception):
 
 class CartAbstract:
     def __init__(self, request, cart=None):
-        self.__request = request
+        self._request = request
         if cart:
             self.cart = cart
             return
@@ -55,7 +55,7 @@ class CartAbstract:
 
     def update_prices(self):
         items = []
-        for item in self.get_products():
+        for item in self.get_items_for_update_prices():
             self.check_item(item)
             if item.id:
                 item.unit_price = item.get_product().get_price(default_currency=True)
@@ -65,12 +65,21 @@ class CartAbstract:
     def check_item(self, item):
         pass
 
+    def get_items_for_update_prices(self):
+        return self.get_products()
+
     def get_products(self):
         try:
             return self._products
         except Exception:
             self._products = self.cart.item_set.all().select_related('_real_product')
             return self._products
+
+    def get_items(self):
+        """
+        Compatibility method because get_products (legacy code) return Cart.items not products ....
+        """
+        return self.get_products()
 
     def total_price_wo_discount_wo_vat_reduction(self, in_default_currency=False):
         total_price = 0
@@ -254,7 +263,7 @@ class CartAbstract:
     def create_cart(self):
         if not self.cart.id:
             self.cart.save()
-            self.__request.session[CART_ID] = self.cart.id
+            self._request.session[CART_ID] = self.cart.id
 
     def add(self, product, quantity=1):
         self.create_cart()
@@ -302,7 +311,7 @@ class CartAbstract:
             item.delete()
         if self.total_products() == 0:
             self.cart.delete()
-            del self.__request.session[CART_ID]
+            del self._request.session[CART_ID]
 
     def update(self, item_id, quantity):
         self.clear_cache()
