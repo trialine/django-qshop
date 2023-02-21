@@ -1,14 +1,15 @@
 from decimal import Decimal
 
 from django.conf import settings
+from django.db.models import Prefetch
 from django.template.loader import render_to_string
 
-from . import models
-from ..models import Currency
-
-from qshop import qshop_settings
 from sitemenu import import_item
-from helpers.math import round_decimal, round_up_to_5_or_10
+from qshop import qshop_settings
+from qshop.helpers.math import round_decimal, round_up_to_5_or_10
+
+from . import models
+from ..models import Currency, Product
 
 count_delivery_price = import_item(qshop_settings.CART_DELIVERY_FUNCTION)
 
@@ -66,20 +67,50 @@ class CartAbstract:
         pass
 
     def get_items_for_update_prices(self):
-        return self.get_products()
+        return self.get_items()
 
     def get_products(self):
-        try:
-            return self._products
-        except Exception:
-            self._products = self.cart.item_set.all().select_related('_real_product')
-            return self._products
-
-    def get_items(self):
         """
         Compatibility method because get_products (legacy code) return Cart.items not products ....
         """
-        return self.get_products()
+        return self.get_items()
+
+    def get_items(self):
+        try:
+            return self._items
+        except Exception:
+            self._items = self.cart.item_set.all().select_related('_real_product')
+            return self._items
+
+    def get_items_without_oss(self):
+        """
+        Alias method
+        """
+        return self.get_items()
+
+    def get_products_with_oss(self):
+        """
+        Compatibility method because get_products_with_oss (legacy code) return Cart.items not products ....
+        """
+        return self.get_items_with_oss()
+
+    def get_items_with_oss(self):
+        """
+        Product class must have custom manager with OSSManagerMixin inheritance
+
+        class CustomProudct(...):
+            objects = CustomProductManager()
+
+        class CustomProductManager(OSSManagerMixin, models.Manager):
+            ....
+        """
+        try:
+            return self._items_with_oss
+        except Exception:
+            self._items_with_oss = self.cart.item_set.all().prefetch_related(
+                Prefetch("_real_product", queryset=Product.objects.with_oss(self._request))
+            )
+            return self._items_with_oss
 
     def total_price_wo_discount_wo_vat_reduction(self, in_default_currency=False):
         total_price = 0

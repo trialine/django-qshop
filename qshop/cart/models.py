@@ -12,7 +12,7 @@ from qshop.mails import sendMail
 from qshop import qshop_settings
 from sitemenu import import_item
 
-from helpers.math import round_decimal, round_up_to_5_or_10
+from qshop.helpers.math import round_decimal, round_up_to_5_or_10
 from ..models import Currency, Product, ProductVariation
 
 PAYMENT_CLASSES = {}

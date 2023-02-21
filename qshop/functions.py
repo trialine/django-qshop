@@ -29,4 +29,3 @@ def get_products_page_data(url_add):
         show_product = False
         del url_add[0]
     return (filter_string, page_num, sort, show_product)
-

@@ -2,7 +2,7 @@
 from setuptools import setup
 
 setup(name='django-qshop',
-      version='1.7.6',
+      version='1.8.0',
       description='E-commerce for django. Requires django-sitemenu. Beta version.',
       long_description='E-commerce for django. Requires django-sitemenu. Beta version.',
       author='Vital Belikov',
@@ -13,7 +13,7 @@ setup(name='django-qshop',
       url='https://github.com/Brick85/django-qshop',
       include_package_data=True,
       zip_safe=False,
-      requires=['django(>=2.0)', 'django_sitemenu', 'easy_thumbnails' 'django_object_actions',],
+      requires=['django(>=2.0)', 'django_sitemenu', 'easy_thumbnails' 'django_object_actions', 'ipware'],
       install_requires=['natsort==8.1.0'],
       classifiers=['Development Status :: 5 - Beta',
                    'Environment :: Web Environment',
