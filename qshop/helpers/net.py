@@ -4,6 +4,9 @@ from ipware.ip import get_client_ip
 
 
 def get_country_by_ip(request):
+    """
+    Newest GeoLite2-Country.mmdb db here https://github.com/P3TERX/GeoLite.mmdb
+    """
     if settings.DEBUG:
         return "LV"
 
