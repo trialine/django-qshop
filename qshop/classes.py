@@ -40,6 +40,7 @@ class CategoryData:
     sort = None
     page = 1
     default_sorting = True
+    parameters_mapping = defaultdict(list)
 
     def __init__(self, request, filter_string, menu, sort, page=1, products=None):
         self.request = request
@@ -49,6 +50,9 @@ class CategoryData:
         self.page_link = menu.get_absolute_url()
         self.init_products = products
         self.filters_set = set(filter_string.split('/'))
+
+        for item in ParameterValue.objects.all():
+            self.parameters_mapping[item.slug].append(item.id)
 
         for i, x in enumerate(Product.SORT_VARIANTS):
             if sort == x[0]:
@@ -179,14 +183,16 @@ class CategoryData:
         if FILTERS_ENABLED:
             self.set_parameter_filters()
 
-    def get_q_filters(self, exclude_filter_slug=None):
+    def get_q_filters(self, exclude_filter_slug=None, filter_preposition=""):
         filters_q = defaultdict(Q)
 
         for slug, filter in self.filters.items():
             if filter['active'] and not slug == exclude_filter_slug:
                 for item in filter['choices']:
                     if item['active']:
-                        filters_q[slug] |= (Q(producttoparameter__value__slug=item['slug']))
+                        filters_q[slug] |= (Q(**{
+                            f'{filter_preposition}producttoparameter__value_id__in': self.parameters_mapping[item['slug']]
+                        }))
         return filters_q.values()
 
     def link_for_page(self, sorting=None, skip_page=True):
@@ -217,20 +223,21 @@ class CategoryData:
         return self.filters
 
     def _check_parameter_filter(self, slug):
-        products = self.filter_products(slug)
-        # if FILTERS_NEED_COUNT:
-        #     aviable_parameters_data = ParameterValue.objects.filter(producttoparameter__product__in=products).annotate(total_items=Count('id')).values_list('id', 'total_items')
-        #     aviable_parameters = []
-        #     parameters_counts = {}
-        #     for aviable_parameter, parameter_count in aviable_parameters_data:
-        #         aviable_parameters.append(aviable_parameter)
-        #         parameters_counts[aviable_parameter] = parameter_count
-        # else:
-        aviable_parameters = ProductToParameter.objects.filter(product__in=products).distinct().values_list('value__slug', flat=True)
+
+        aviable_parameters = ProductToParameter.objects.filter(
+            product__hidden=False,
+            product__category=self.menu,
+        )
+
+        for filter in self.get_q_filters(slug, 'product__'):
+            aviable_parameters = aviable_parameters.filter(filter)
+
+        aviable_parameters = aviable_parameters.distinct().values_list('value_id', flat=True)
+
         # parameters_counts = {}
 
         for filter in self.filters[slug]['choices']:
-            filter['aviable'] = filter['slug'] in aviable_parameters
+            filter['aviable'] = set(self.parameters_mapping[filter['slug']]).intersection(aviable_parameters)
 
     def _check_variation_filter(self, filter_id, filter_data, products):
         products = self.filter_products(filter_id)
