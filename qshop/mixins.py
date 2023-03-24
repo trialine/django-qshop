@@ -5,26 +5,38 @@ from qshop.helpers.net import get_country_by_ip
 
 
 class OSSMixin:
+    """
+    Main purpose of using this Mixin is to use "get_vat_reduction" to get VAT reduction and new VAT from request
+    """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # hack to avoid import looping
-        # TODO: find more elegant solution
         from qshop import cart
-
         self.cart_module = cart
 
-    def get_country_code_by_request(self, request):
+    def get_country_code_from_request(self, request):
         """
         By default IP country iso2 code return (like LV, UK)
         Here you can implement your logic.
         """
         return get_country_by_ip(request)
 
-    def _get_vat_reduction(self, request):
+    def get_fallback_vat_reduction(self):
+        """
+        Method to catch calling get_vat_reduction without request
+        """
+        return 0, 0
+
+    def get_vat_reduction(self, request):
         """
         Return VAT reduction and new VAT depends on request
+
+        Sometimes when calling cart.get_cart_object there are no any option get VAT reduction from request
         """
-        ip_country_code = self.get_country_code_by_request(request)
+        if not request:
+            return self.get_fallback_vat_reduction()
+
+        ip_country_code = self.get_country_code_from_request(request)
 
         if request.user.is_authenticated:
             kwargs = self._get_vat_reduction_kwargs_for_authenticated_user(

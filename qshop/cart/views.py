@@ -106,7 +106,6 @@ def update_cart(request):
     return HttpResponseRedirect(reverse('cart'))
 
 
-
 class CartDetailView(TemplateView):
     template_name = "qshop/cart/cart.html"
 

@@ -496,7 +496,7 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
 
         def get_vat_reduction(self, vat_nr, person_type):
             if person_type and int(person_type) == Order.LEGAL and \
-                (self.vat_behavior == self.VAT_MINUS_LEGAL_VAT and vat_nr or self.vat_behavior == self.VAT_MINUS_LEGAL):
+               (self.vat_behavior == self.VAT_MINUS_LEGAL_VAT and vat_nr or self.vat_behavior == self.VAT_MINUS_LEGAL):
                 return self.get_vat_percent()
             return 0
 
@@ -517,7 +517,8 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
             if legal_country.iso2_code == qshop_settings.MERCHANT_SHOP_COUNTRY_CODE:
                 return 0, 0
             # merchant from EU and firm from EU
-            elif shop_country.vat_behavior == cls.EU_ZONE_APPLY_OSS and legal_country.vat_behavior == cls.EU_ZONE_APPLY_OSS:
+            elif (shop_country.vat_behavior == cls.EU_ZONE_APPLY_OSS and
+                  legal_country.vat_behavior == cls.EU_ZONE_APPLY_OSS):
                 if vat_reg_number:
                     return qshop_settings.MERCHANT_VAT, 0
 
@@ -537,7 +538,6 @@ if qshop_settings.ENABLE_QSHOP_DELIVERY:
             # merchant outside EU
             elif shop_country.vat_behavior == cls.OUT_OF_EU:
                 return qshop_settings.MERCHANT_VAT, 0
-
 
         @classmethod
         def get_vat_reduction_to_physical_with_delivery(cls, delivery_country):
