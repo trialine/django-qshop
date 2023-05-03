@@ -195,16 +195,19 @@ class ItemAbstract(models.Model):
     def single_price_discount(self, in_default_currency=False):
         return Decimal(self.single_price(in_default_currency)) * Decimal(0 + (self.discount_percent(in_default_currency) / 100))
 
+    def get_rounded_vat_reducted_value_to(self, price):
+        return (round_up_to_5_or_10(
+            round_decimal(
+                Decimal(str(price)) / (Decimal('1') + self.cart.vat_reduction)
+            ) * (Decimal('1') + self.cart.new_vat)
+        ))
+
     def total_fprice(self):
         total = self.total_price()
 
         # #968 show in cart rounding price with up to 5 or 10
         if self.cart.vat_reduction:
-            total = (round_up_to_5_or_10(
-                round_decimal(
-                    Decimal(str(total)) / (Decimal('1') + self.cart.vat_reduction)
-                ) * (Decimal('1') + self.cart.new_vat)
-            ))
+            total = self.get_rounded_vat_reducted_value_to(total)
         return Currency.get_fprice(total, format_only=True)
 
     def get_product(self):
