@@ -31,7 +31,7 @@ class ItemTooMany(Exception):
 
 class CartAbstract:
     def __init__(self, request, cart=None):
-        self.__request = request
+        self._request = request
         if cart:
             self.cart = cart
             return
@@ -209,7 +209,7 @@ class CartAbstract:
     def create_cart(self):
         if not self.cart.id:
             self.cart.save()
-            self.__request.session[CART_ID] = self.cart.id
+            self._request.session[CART_ID] = self.cart.id
 
     def add(self, product, quantity=1):
         self.create_cart()
@@ -257,7 +257,7 @@ class CartAbstract:
             item.delete()
         if self.total_products() == 0:
             self.cart.delete()
-            del self.__request.session[CART_ID]
+            del self._request.session[CART_ID]
 
     def update(self, item_id, quantity):
         self.clear_cache()
