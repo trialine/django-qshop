@@ -121,8 +121,8 @@ class CategoryData:
 
         if apps.is_installed('modeltranslation'):
             from django.utils.translation import get_language
-            filter_name = 'parameter__name_%s' % get_language()
-            value_value = 'value__value_%s' % get_language()
+            filter_name = 'parameter__name_%s' % get_language().replace('-', '_')
+            value_value = 'value__value_%s' % get_language().replace('-', '_')
 
         self.filters_qs = ProductToParameter.objects.filter(
             product__category=self.menu,
