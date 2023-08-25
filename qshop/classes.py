@@ -168,11 +168,13 @@ class CategoryData:
 
     def get_filter_link(self, filter_slug="", exclude=False):
         filter_string = ""
+        self.use_filter = False
 
         for item in self.filters_qs:
             filters = set([filter_slug]).union(self.filters_set)
             if item['value__slug'] in filters and not (exclude and item['value__slug'] == filter_slug):
                 filter_string += f'{item["value__slug"]}/'
+                self.use_filter = True
 
         if not filter_slug and not int(self.page) == 1:
             filter_string += f'page-{self.page}/'
