@@ -1,9 +1,9 @@
-import re
+import math
+from decimal import Decimal
 from collections import defaultdict
-
 from django.apps import apps
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Min, Max
 from django.http import Http404
 from django.utils.translation import gettext_lazy as _
 
@@ -40,6 +40,7 @@ class CategoryData:
     sort = None
     page = 1
     default_sorting = True
+    use_filter = False
     parameters_mapping = defaultdict(list)
 
     def __init__(self, request, filter_string, menu, sort, page=1, products=None):
@@ -57,10 +58,7 @@ class CategoryData:
         for i, x in enumerate(Product.SORT_VARIANTS):
             if sort == x[0]:
                 self.sort = x
-                if i == 0:
-                    self.default_sorting = True
-                else:
-                    self.default_sorting = False
+                self.default_sorting = i == 0
                 break
         if not self.sort:
             raise Http404('Invalid sorting parameter')
@@ -69,7 +67,7 @@ class CategoryData:
             self.process_filters()
         self.process_products()
 
-        page_link = self.get_filter_link()
+        page_link = self.link_for_page(skip_page=False)
 
         if not self.request.path == page_link:
             self.return_data = REDIRECT_CLASS(page_link)
@@ -146,9 +144,10 @@ class CategoryData:
             filter_is_active = value_slug in self.filters_set
 
             filter = self.filters.get(parameter_slug, {
-                'active': False,
+                'active': filter_is_active,
+                'type': 'coice',
                 'name': item[filter_name],
-                'choices': []
+                'choices': [],
             })
 
             filter['choices'].append({
@@ -156,54 +155,85 @@ class CategoryData:
                 'name': item.get(value_value),
                 'slug': value_slug,
                 'active': filter_is_active,
-                'link': self.get_filter_link(value_slug, exclude=filter_is_active)
+                'link': self.link_for_page(value_slug, filter_is_active)
             })
 
-            if filter_is_active:
-                filter['active'] = True
             self.filters[parameter_slug] = filter
 
-        for slug in self.filters.keys():
-            self._check_parameter_filter(slug)
+            for slug in self.filters.keys():
+                self._check_parameter_filter(slug)
 
-    def get_filter_link(self, filter_slug="", exclude=False):
+    def set_price_filters(self):
+        field_name = 'price'
+        field = Product._meta.get_field(field_name)
+        price_filter = next(filter(lambda i: i.startswith('price-range-'), self.filters_set), None)
+
+
+        self.filters['price_range'] = {
+            'active': bool(price_filter),
+            'type': 'price_range',
+            'name': field.verbose_name,
+            'link': self.link_for_page('price_range', bool(price_filter))
+        }
+
+        if price_filter:
+            self.filters['price_range']['min'], self.filters['price_range']['max'] = self.decode_price_filter(price_filter)
+
+        self._check_price_filter('price_range')
+
+    def decode_price_filter(self, filter_string):
+        filter_data = filter_string.split('-')
+        try:
+            return [(int(x)) for x in filter_data[2].split(':')]
+        except ValueError:
+            return [Decimal(x) for x in filter_data[2].split(':').split(':')]
+
+    def link_for_page(self, filter_slug="", exclude=False, sorting=None, skip_page=True):
+        filters = set([filter_slug]).union(self.filters_set)
         filter_string = ""
-        self.use_filter = False
 
         for item in self.filters_qs:
-            filters = set([filter_slug]).union(self.filters_set)
             if item['value__slug'] in filters and not (exclude and item['value__slug'] == filter_slug):
                 filter_string += f'{item["value__slug"]}/'
-                self.use_filter = True
+                self.use_filter = False
 
-        if not filter_slug and not int(self.page) == 1:
+        price_filter = next(filter(lambda i: i.startswith('price-range-'), self.filters_set), None)
+
+        if filter_slug == 'price_range':
+            filter_string += f'price-range-#min:#max/'
+        if price_filter and not (exclude and filter_slug == 'price_range'):
+            filter_string += f'{price_filter}/'
+        if not sorting and not self.default_sorting:
+            filter_string += f'sort-{self.sort[0]}/'
+        if sorting and sorting != Product.SORT_VARIANTS[0][0]:
+            filter_string += f'sort-{sorting}/'
+        if not skip_page and not int(self.page) == 1:
             filter_string += f'page-{self.page}/'
 
-        return self.menu.get_absolute_url() + f'{filter_string}'
+        return self.menu.get_absolute_url() + filter_string
 
     def process_filters(self):
         if FILTERS_ENABLED:
             self.set_parameter_filters()
+            self.set_price_filters()
 
     def get_q_filters(self, exclude_filter_slug=None, filter_preposition=""):
         filters_q = defaultdict(Q)
 
         for slug, filter in self.filters.items():
             if filter['active'] and not slug == exclude_filter_slug:
-                for item in filter['choices']:
-                    if item['active']:
-                        filters_q[slug] |= (Q(**{
-                            f'{filter_preposition}producttoparameter__value_id__in': self.parameters_mapping[item['slug']]
-                        }))
+                if filter['type'] == 'price_range':
+                    filters_q['price'] = Q(
+                        Q(price__gte=filter['min']) & Q(price__lte=filter['max']) |
+                        Q(discount_price__gte=filter['min']) & Q(discount_price__lte=filter['max'])
+                    )
+                else:
+                    for item in filter['choices']:
+                        if item['active']:
+                            filters_q[slug] |= (Q(**{
+                                f'{filter_preposition}producttoparameter__value_id__in': self.parameters_mapping[item['slug']]
+                            }))
         return filters_q.values()
-
-    def link_for_page(self, sorting=None, skip_page=True):
-        filter_string = ""
-        for filter in self.filters.values():
-            for item in filter['choices']:
-                if item['value__slug'] in self.filters_set:
-                    filter_string += f'{item["value__slug"]}/'
-        return self.menu.get_absolute_url() + f'{filter_string}'
 
     def get_sorting_variants(self):
         for variant in Product.SORT_VARIANTS:
@@ -212,9 +242,9 @@ class CategoryData:
             except IndexError:
                 add = None
             yield {
-                'link': self.link_for_page(sorting=variant[0], skip_page=True),
+                'link': self.link_for_page(sorting=variant[0]),
                 'name': variant[2],
-                'selected': True if variant[0] == self.sort[0] else False,
+                'selected': variant[0] == self.sort[0],
                 'add': add
             }
 
@@ -236,53 +266,21 @@ class CategoryData:
 
         aviable_parameters = aviable_parameters.distinct().values_list('value_id', flat=True)
 
-        # parameters_counts = {}
-
         for filter in self.filters[slug]['choices']:
             filter['aviable'] = set(self.parameters_mapping[filter['slug']]).intersection(aviable_parameters)
 
-    def _check_variation_filter(self, filter_id, filter_data, products):
-        products = self.filter_products(filter_id)
+    def _check_price_filter(self, filter_name):
+        products = self.filter_products(filter_name)
+        prices = products.aggregate(min_price=Min('price'), max_price=Max('price'))
+        self.filters[filter_name]['min_price'] = None
+        self.filters[filter_name]['max_price'] = None
 
-        if FILTERS_NEED_COUNT:
-            aviable_variations_data = ProductVariationValue.objects.filter(productvariation__product__in=products).annotate(total_items=Count('id')).values_list('id', 'total_items')
-            aviable_variations = []
-            variations_counts = {}
-            for aviable_parameter, parameter_count in aviable_variations_data:
-                aviable_variations.append(aviable_parameter)
-                variations_counts[aviable_parameter] = parameter_count
-        else:
-            aviable_variations = ProductVariationValue.objects.filter(productvariation__product__in=products).distinct().values_list('id', flat=True)
-            variations_counts = {}
+        try:
+            self.filters[filter_name]['min_price'] = math.ceil(prices['min_price'])
+        except TypeError:
+            pass
 
-        for value_id, value_data in filter_data['values']:
-            if FILTERS_NEED_COUNT and value_id in variations_counts:
-                value_data['count'] = variations_counts[value_id]
-            if value_id not in aviable_variations:
-                value_data['unaviable'] = True
-
-    def _check_foreignkey_filter(self, filter_id, filter_data, products):
-        products = self.filter_products(filter_id)
-
-        field_name = FILTERS_FIELDS[filter_id]
-        field = Product._meta.get_field(field_name)
-        model = field.related_model
-
-        model.objects.filter(product__category=self.menu).distinct()
-
-        if FILTERS_NEED_COUNT:
-            aviable_field_data = model.objects.filter(product__in=products).annotate(total_items=Count('id')).values_list('id', 'total_items')
-            aviable_field = []
-            field_counts = {}
-            for item, count in aviable_field_data:
-                aviable_field.append(item)
-                field_counts[item] = count
-        else:
-            aviable_field = model.objects.filter(product__in=products).distinct().values_list('id', flat=True)
-            field_counts = {}
-
-        for value_id, value_data in filter_data['values']:
-            if FILTERS_NEED_COUNT and value_id in field_counts:
-                value_data['count'] = field_counts[value_id]
-            if value_id not in aviable_field:
-                value_data['unaviable'] = True
+        try:
+            self.filters[filter_name]['max_price'] = math.floor(prices['max_price'])
+        except TypeError:
+            pass
