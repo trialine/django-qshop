@@ -1,9 +1,9 @@
-import math
+from math import ceil, floor
 from decimal import Decimal
 from collections import defaultdict
 from django.apps import apps
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
-from django.db.models import Count, Q, Min, Max
+from django.db.models import DecimalField, F, Q, Min, Max, Case, When
 from django.http import Http404
 from django.utils.translation import gettext_lazy as _
 
@@ -81,6 +81,12 @@ class CategoryData:
         else:
             products = Product.in_category_objects.exclude(discount_price=None)
 
+        products = products.annotate(min_price=Case(
+            When(discount_price__isnull=False, then=F('discount_price')),
+            default=F('price'),
+            output_field=DecimalField(decimal_places=2, max_digits=10)
+        ))
+
         for filter_q in self.get_q_filters(exclude_filter_slug):
             products = products.filter(filter_q)
 
@@ -91,7 +97,7 @@ class CategoryData:
 
         if self.sort[1] == 'price' or self.sort[1] == '-price':
             sort = self.sort[1].replace('price', 'min_price')
-            products = products.extra(select={'min_price': "IF(`qshop_product`.`discount_price`, `qshop_product`.`discount_price`, `qshop_product`.`price`)"}).order_by(sort)
+            products = products.order_by(sort)
         else:
             sort = self.sort[1]
             if isinstance(sort, str):
@@ -223,9 +229,9 @@ class CategoryData:
         for slug, filter in self.filters.items():
             if filter['active'] and not slug == exclude_filter_slug:
                 if filter['type'] == 'price_range':
-                    filters_q['price'] = Q(
-                        Q(price__gte=filter['min']) & Q(price__lte=filter['max']) |
-                        Q(discount_price__gte=filter['min']) & Q(discount_price__lte=filter['max'])
+                    filters_q['price'] = (
+                        Q(min_price__gte=self._round_min_price(filter['min'])) &
+                        Q(min_price__lte=self._round_max_price(filter['max']))
                     )
                 else:
                     for item in filter['choices']:
@@ -254,8 +260,23 @@ class CategoryData:
     def get_filters(self):
         return self.filters
 
-    def _check_parameter_filter(self, slug):
+    def _round_min_price(self, price):
+        price = ceil(price)
+        if price % 10 == 0:
+            return price - 4
+        remainder = (price % 5) - 1
+        if remainder <= 0:
+            return price
+        return price - remainder
 
+    def _round_max_price(self, price):
+        price = ceil(price)
+        remainder = (price % 5)
+        if remainder == 0:
+            return price
+        return price - remainder
+
+    def _check_parameter_filter(self, slug):
         aviable_parameters = ProductToParameter.objects.filter(
             product__hidden=False,
             product__category=self.menu,
@@ -276,11 +297,11 @@ class CategoryData:
         self.filters[filter_name]['max_price'] = None
 
         try:
-            self.filters[filter_name]['min_price'] = math.ceil(prices['min_price'])
+            self.filters[filter_name]['min_price'] = ceil(prices['min_price'])
         except TypeError:
             pass
 
         try:
-            self.filters[filter_name]['max_price'] = math.floor(prices['max_price'])
+            self.filters[filter_name]['max_price'] = floor(prices['max_price'])
         except TypeError:
             pass
