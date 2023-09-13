@@ -230,7 +230,7 @@ class CategoryData:
             if filter['active'] and not slug == exclude_filter_slug:
                 if filter['type'] == 'price_range':
                     filters_q['price'] = (
-                        Q(min_price__gte=self._round_min_price(filter['min'])) &
+                        Q(min_price__gt=self._round_min_price(filter['min'])) &
                         Q(min_price__lte=self._round_max_price(filter['max']))
                     )
                 else:
@@ -261,20 +261,12 @@ class CategoryData:
         return self.filters
 
     def _round_min_price(self, price):
-        price = ceil(price)
-        if price % 10 == 0:
-            return price - 4
-        remainder = (price % 5) - 1
-        if remainder <= 0:
-            return price
-        return price - remainder
+        price = int(price)
+        return price - (price % 5 or 5)
 
     def _round_max_price(self, price):
-        price = ceil(price)
-        remainder = (price % 5)
-        if remainder == 0:
-            return price
-        return price - remainder
+        price = int(price)
+        return price - price % 5
 
     def _check_parameter_filter(self, slug):
         aviable_parameters = ProductToParameter.objects.filter(
