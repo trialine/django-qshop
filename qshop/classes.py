@@ -143,15 +143,21 @@ class CategoryData:
 
         self.filters_qs.query.group_by = ['value__slug']
         self.filters_qs = self.filters_qs.values('value__slug', 'parameter__slug', value_value, filter_name, 'parameter__order')
+
+        filters_list = []
+
         for item in self.filters_qs:
+            if f"{item['parameter__slug']}/{item['value__slug']}" in filters_list:
+                continue
+            filters_list.append(f"{item['parameter__slug']}/{item['value__slug']}")
             value_slug = item['value__slug']
             parameter_slug = item['parameter__slug']
 
             filter_is_active = value_slug in self.filters_set
 
             filter = self.filters.get(parameter_slug, {
-                'active': filter_is_active,
-                'type': 'coice',
+                'active': False,
+                'type': 'choice',
                 'name': item[filter_name],
                 'choices': [],
             })
@@ -164,6 +170,8 @@ class CategoryData:
                 'link': self.link_for_page(value_slug, filter_is_active)
             })
 
+            if filter_is_active:
+                filter['active'] = True
             self.filters[parameter_slug] = filter
 
             for slug in self.filters.keys():
@@ -196,25 +204,31 @@ class CategoryData:
 
     def link_for_page(self, filter_slug="", exclude=False, sorting=None, skip_page=True):
         filters = set([filter_slug]).union(self.filters_set)
-        filter_string = ""
+        filters_list = []
 
         for item in self.filters_qs:
-            if item['value__slug'] in filters and not (exclude and item['value__slug'] == filter_slug):
-                filter_string += f'{item["value__slug"]}/'
+            if item['value__slug'] in filters_list or exclude and item['value__slug'] == filter_slug:
+                continue
+            if item['value__slug'] in filters:
+                filters_list.append(item['value__slug'])
                 self.use_filter = False
 
         price_filter = next(filter(lambda i: i.startswith('price-range-'), self.filters_set), None)
 
         if filter_slug == 'price_range':
-            filter_string += f'price-range-#min:#max/'
+            filters_list.append('price-range-#min:#max')
         if price_filter and not (exclude and filter_slug == 'price_range'):
-            filter_string += f'{price_filter}/'
+            filters_list.append(price_filter)
         if not sorting and not self.default_sorting:
-            filter_string += f'sort-{self.sort[0]}/'
+            filters_list.append(f'sort-{self.sort[0]}')
         if sorting and sorting != Product.SORT_VARIANTS[0][0]:
-            filter_string += f'sort-{sorting}/'
+            filters_list.append(f'sort-{sorting}')
         if not skip_page and not int(self.page) == 1:
-            filter_string += f'page-{self.page}/'
+            filters_list.append(f'page-{self.page}')
+
+        filter_string = '/'.join(filters_list)
+        if filter_string:
+            filter_string += '/'
 
         return self.menu.get_absolute_url() + filter_string
 
