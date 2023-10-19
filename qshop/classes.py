@@ -174,8 +174,8 @@ class CategoryData:
                 filter['active'] = True
             self.filters[parameter_slug] = filter
 
-            for slug in self.filters.keys():
-                self._check_parameter_filter(slug)
+        for slug in self.filters.keys():
+            self._check_parameter_filter(slug)
 
     def set_price_filters(self):
         field_name = 'price'
