@@ -5,7 +5,8 @@ from decimal import Decimal
 from django.apps import apps
 from django.conf import settings
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
-from django.db.models import Count, Max, Min, Q
+from django.db.models import Count, Max, Min, Q, FloatField
+from django.db.models.functions import Cast
 from django.http import Http404, HttpResponseRedirect
 from django.utils.translation import ugettext_lazy as _
 from natsort import natsorted
@@ -135,9 +136,12 @@ class CategoryDataAbstract:
                         **{f'product__hidden_{settings.SITE_ID}': False}
                     ).exclude(
                         value=None
+                    ).annotate(
+                        number_ordering=Cast(value_value, output_field=FloatField())
                     ).order_by(
                         'parameter__parameters_set',
                         'parameter__order',
+                        'number_ordering',
                         value_value
                     )
 
