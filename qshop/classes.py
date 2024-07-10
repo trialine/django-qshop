@@ -5,7 +5,7 @@ from decimal import Decimal
 from django.apps import apps
 from django.conf import settings
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
-from django.db.models import Count, Max, Min, Q, FloatField
+from django.db.models import Count, Max, Min, Q, Case, When, Value, FloatField, BooleanField
 from django.db.models.functions import Cast
 from django.http import Http404, HttpResponseRedirect
 from django.utils.translation import ugettext_lazy as _
@@ -137,10 +137,16 @@ class CategoryDataAbstract:
                     ).exclude(
                         value=None
                     ).annotate(
-                        number_ordering=Cast(value_value, output_field=FloatField())
+                        number_ordering=Cast(value_value, output_field=FloatField()),
+                        starts_with_digit=Case(
+                            When(**{f'{value_value}__regex': r'^[0-9]'}, then=Value(True)),
+                            default=Value(False),
+                            output_field=BooleanField()
+                        )
                     ).order_by(
                         'parameter__parameters_set',
                         'parameter__order',
+                        '-starts_with_digit',
                         'number_ordering',
                         value_value
                     )
