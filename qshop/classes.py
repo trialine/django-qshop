@@ -50,6 +50,7 @@ class CategoryData:
         self.page = page
         self.page_link = menu.get_absolute_url()
         self.init_products = products
+        self.is_active_filter = False
         self.filters_set = set(filter_string.split('/'))
 
         for item in ParameterValue.objects.all():
@@ -172,6 +173,7 @@ class CategoryData:
 
             if filter_is_active:
                 filter['active'] = True
+                self.is_active_filter = True
             self.filters[parameter_slug] = filter
 
         for slug in self.filters.keys():
@@ -187,10 +189,12 @@ class CategoryData:
             'active': bool(price_filter),
             'type': 'price_range',
             'name': field.verbose_name,
-            'link': self.link_for_page('price_range', bool(price_filter))
+            'link': self.link_for_page('price_range', bool(price_filter)),
+            'reset_link': self.link_for_page('price_range', True),
         }
 
         if price_filter:
+            self.is_active_filter = True
             self.filters['price_range']['min'], self.filters['price_range']['max'] = self.decode_price_filter(price_filter)
 
         self._check_price_filter('price_range')
@@ -215,9 +219,9 @@ class CategoryData:
 
         price_filter = next(filter(lambda i: i.startswith('price-range-'), self.filters_set), None)
 
-        if filter_slug == 'price_range':
+        if filter_slug == 'price_range' and not exclude:
             filters_list.append('price-range-#min:#max')
-        if price_filter and not (exclude and filter_slug == 'price_range'):
+        if price_filter and not filter_slug == 'price_range':
             filters_list.append(price_filter)
         if not sorting and not self.default_sorting:
             filters_list.append(f'sort-{self.sort[0]}')
