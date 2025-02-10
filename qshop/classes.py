@@ -189,7 +189,7 @@ class CategoryData:
             'active': bool(price_filter),
             'type': 'price_range',
             'name': field.verbose_name,
-            'link': self.link_for_page('price_range', bool(price_filter)),
+            'link': self.link_for_page('price_range', False),
             'reset_link': self.link_for_page('price_range', True),
         }
 
