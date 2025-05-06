@@ -247,6 +247,7 @@ if qshop_settings.ENABLE_PROMO_CODES:
 
         def get_form_kwargs(self):
             kwargs = super(ApplyPromoView, self).get_form_kwargs()
+            kwargs['user'] = self.request.user
             kwargs['cart'] = Cart(self.request)
             return kwargs
 
