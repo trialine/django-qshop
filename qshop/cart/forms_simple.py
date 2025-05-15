@@ -51,7 +51,7 @@ if ENABLE_PROMO_CODES:
             if not self.promo_code:
                 self.add_error('code', _('Invalid promo code'))
 
-            if self.promo_code and self.user and self.promo_code.create_by_id == self.user.id:
+            if self.promo_code and self.user and self.user.id and self.promo_code.create_by_id == self.user.id:
                 self.add_error('code', _('You cannot use a promo code created by yourself'))
 
             if self.promo_code and self.promo_code.min_sum > self.cart.total_price_wo_discount_wo_vat_reduction():
