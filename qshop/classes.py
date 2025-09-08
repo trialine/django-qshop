@@ -40,7 +40,7 @@ class CategoryData:
     sort = None
     page = 1
     default_sorting = True
-    use_filter = False
+    is_noindex = False
     parameters_mapping = defaultdict(list)
 
     def __init__(self, request, filter_string, menu, sort, page=1, products=None):
@@ -143,7 +143,7 @@ class CategoryData:
         )
 
         self.filters_qs.query.group_by = ['value__slug']
-        self.filters_qs = self.filters_qs.values('value__slug', 'parameter__slug', value_value, filter_name, 'parameter__order')
+        self.filters_qs = self.filters_qs.values('value__slug', 'parameter__slug', value_value, filter_name, 'parameter__order', 'parameter__is_noindex')
 
         filters_list = []
 
@@ -155,6 +155,8 @@ class CategoryData:
             parameter_slug = item['parameter__slug']
 
             filter_is_active = value_slug in self.filters_set
+            if filter_is_active:
+                self.is_noindex = self.is_noindex or item['parameter__is_noindex']
 
             filter = self.filters.get(parameter_slug, {
                 'active': False,
@@ -215,7 +217,6 @@ class CategoryData:
                 continue
             if item['value__slug'] in filters:
                 filters_list.append(item['value__slug'])
-                self.use_filter = False
 
         price_filter = next(filter(lambda i: i.startswith('price-range-'), self.filters_set), None)
 
