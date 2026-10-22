@@ -62,6 +62,10 @@ class CartAbstract(models.Model):
     def get_discount(self, in_default_currency=False):
         if qshop_settings.ENABLE_PROMO_CODES:
             discount = Decimal('0')
+            if self.pk is None:
+                # A cart is created unsaved and saved on the first add(); since
+                # Django 4.1 a reverse relation on an unsaved instance raises.
+                return discount
             for item in self.item_set.all():
                 discount += item.total_discount(in_default_currency)
             return discount
