@@ -1,11 +1,11 @@
-from django.conf.urls import url
+from django.urls import re_path
 
 from qshop import qshop_settings
 
 if qshop_settings.ENABLE_PAYMENTS:
     from qshop.payment_vendors.views import test_payment
     urlpatterns = [
-        url(r'^test_payment/$', test_payment, name='test_payment'),
+        re_path(r'^test_payment/$', test_payment, name='test_payment'),
     ]
 
     if 'banktransfer' in qshop_settings.PAYMENT_METHODS_ENABLED:
@@ -16,23 +16,23 @@ if qshop_settings.ENABLE_PAYMENTS:
     if 'paypal' in qshop_settings.PAYMENT_METHODS_ENABLED:
         from qshop.payment_vendors.views import vendors_payment_paypal_ok
         urlpatterns += [
-            url(r'^paypal/ok/(?P<order_id>\d+)/$', vendors_payment_paypal_ok, name='vendors_payment_paypal_ok'),
+            re_path(r'^paypal/ok/(?P<order_id>\d+)/$', vendors_payment_paypal_ok, name='vendors_payment_paypal_ok'),
         ]
     if 'webmoney' in qshop_settings.PAYMENT_METHODS_ENABLED:
         from qshop.payment_vendors.views import vendors_payment_webmoney_ok
         from qshop.payment_vendors.views import vendors_payment_webmoney_result
         urlpatterns += [
-            url(r'^webmoney/ok/$', vendors_payment_webmoney_ok, name='vendors_payment_webmoney_ok'),
-            url(r'^webmoney/result/$', vendors_payment_webmoney_result, name='vendors_payment_webmoney_result'),
+            re_path(r'^webmoney/ok/$', vendors_payment_webmoney_ok, name='vendors_payment_webmoney_ok'),
+            re_path(r'^webmoney/result/$', vendors_payment_webmoney_result, name='vendors_payment_webmoney_result'),
             # url(r'^webmoney/fail/$', 'qshop.payment_vendors.views.vendors_payment_webmoney_fail', name='vendors_payment_webmoney_fail'),
         ]
     if 'swedbank' in qshop_settings.PAYMENT_METHODS_ENABLED:
         from qshop.payment_vendors.swedbank.views import payment_swedbank_return
         urlpatterns += [
-            url(r'^swedbank/return/$', payment_swedbank_return, name="payment_swedbank_return"),
+            re_path(r'^swedbank/return/$', payment_swedbank_return, name="payment_swedbank_return"),
         ]
     if 'firstdata' in qshop_settings.PAYMENT_METHODS_ENABLED:
         from qshop.payment_vendors.firstata.views import payment_firstdata_return
         urlpatterns += [
-            url(r'^swedbank/return/$', payment_firstdata_return, name="payment_firstdata_return"),
+            re_path(r'^swedbank/return/$', payment_firstdata_return, name="payment_firstdata_return"),
         ]
