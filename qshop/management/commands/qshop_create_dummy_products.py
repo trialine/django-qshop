@@ -36,10 +36,10 @@ class Command(BaseCommand):
         # pcount = len(categories) * 50
 
 
-        print "getting list of files..."
+        print("getting list of files...")
         mypath = os.path.join(settings.MEDIA_ROOT, 'dummy')
         onlyfiles = [ "dummy/"+f for f in os.listdir(mypath) if os.path.isfile(os.path.join(mypath,f)) ]
-        print "creating objects..."
+        print("creating objects...")
         for i in range(pcount):
             # print fake.text(25)
             p = Product()
@@ -72,4 +72,4 @@ class Command(BaseCommand):
             for j in range(random.choice([1,1,1,1,2,2,3])):
                 p.category.add(random.choice(categories))
 
-            print "created product", i
+            print("created product", i)
