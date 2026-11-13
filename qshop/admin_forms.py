@@ -75,7 +75,7 @@ class ProductAdminForm(forms.ModelForm):
     def clean_articul(self):
         data = self.cleaned_data['articul']
         try:
-            data = re.match("(.*)-copy-\d+", data).groups()[0]
+            data = re.match(r"(.*)-copy-\d+", data).groups()[0]
         except Exception:
             pass
         orig_data = data

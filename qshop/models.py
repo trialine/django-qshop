@@ -74,7 +74,7 @@ class CategoryManager(models.Manager):
         return super().get_queryset().filter(hidden=False)
 
 def articul_validate(articul):
-    if not re.match("^[A-Za-z0-9_.-]+\Z$", articul):
+    if not re.match(r"^[A-Za-z0-9_.-]+\Z$", articul):
         raise ValidationError(
             _('Enter a valid “slug” consisting of letters, numbers, underscores, dots or hyphens'),
             params={'articul': articul},

@@ -30,7 +30,7 @@ def add_to_cart(request, product_id):
     variation_quantities = {}
 
     if not variation_id:
-        variation_quantity_re = re.compile('^variation_quantity_(\d+)$')
+        variation_quantity_re = re.compile(r'^variation_quantity_(\d+)$')
         for item in request.GET:
             match = variation_quantity_re.match(item)
             if match:
